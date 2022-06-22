@@ -65,6 +65,10 @@ def create_logins_data(attack_map:Dict, **shared_data):
     return list()
 
 
+def read_file_lines(file_path):
+    '''Reads lines from file in path, returns generator'''
+    with open(file_path, "r") as f:
+        yield from f
  
 
 
