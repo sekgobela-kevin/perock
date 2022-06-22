@@ -13,16 +13,18 @@ import threading
 import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import as_completed
-import concurrent.futures
+#from concurrent.futures import as_completed
+#import concurrent.futures
 
 
-from attack import Attack, AttackAsync, WebAttackAsync
+from attack import Attack
+from attack import AttackAsync
+from attack import WebAttackAsync
 from attack import WebAttack
-from handle_data import transform_to_map
-from credentials import group_credentials
-from credentials import Credential, Credentials
-from credentials import GroupedCredentials
+
+from forcetable import FColumn
+from forcetable import FRow
+from forcetable import FTable
 
 # asyncio.to_thread() is New in Python version 3.9.
 # see https://docs.python.org/3/library/asyncio-task.html#id10
@@ -30,11 +32,11 @@ from util import to_thread
 
 
 class BForce():
-    def __init__(self, target, credentials) -> None:
+    '''Performs attack on target with data from FTable object(threaded)'''
+    def __init__(self, target, ftable) -> None:
         self.target = target
-        self.credentials = credentials
-        self.credentials_queue = queue.Queue(maxsize=3000)
-        #self.grouped_credentials = group_credentials(credentials)
+        self.ftable = ftable
+        self.ftable_queue = queue.Queue(maxsize=3000)
 
         # Total independed tasks to run
         # Corresponds to requests that will be executed concurrently
@@ -103,34 +105,34 @@ class BForce():
         return attack_class(self.target, data)
 
     def producer(self):
-        # Added credentials to credentials queue
-        for credential in self.credentials:
+        # Added ftable to ftable queue
+        for frow in self.ftable:
             # queue.put() will block if queue is already full
             print("producer put")
-            self.credentials_queue.put(credential)
+            self.ftable_queue.put(frow)
 
 
-    def credentials_queue_elements(self, size=None, timeout=0.2):
-        # Accesses size items from credentials_queue
+    def ftable_queue_elements(self, size=None, timeout=0.2):
+        # Accesses size items from ftable_queue
         # If size is None, accesses from current qsize()
         if size == None:
-            size = self.credentials_queue.qsize()
-        credentials = []
+            size = self.ftable_queue.qsize()
+        ftable = []
         count = 0
         while count < size:
             try:
-                # Get credential if available in timeout
-                credential = self.credentials_queue.get(timeout=timeout)
+                # Get frow if available in timeout
+                frow = self.ftable_queue.get(timeout=timeout)
             except queue.Empty:
-                # Break the loop if failed to get credential
+                # Break the loop if failed to get frow
                 # That may mean produser finished running
                 break
             else:
-                credentials.append(credential)  
+                ftable.append(frow)  
             count += 1
-        # If credentials is empty, credentials_queue may be empty
+        # If ftable is empty, ftable_queue may be empty
         # Produser may have stopped or timeout is too small
-        return credentials
+        return ftable
 
 
 
@@ -153,12 +155,12 @@ class BForce():
             logging.info("Something is not right")
 
 
-    def handle_attack(self, credential):
+    def handle_attack(self, frow):
         # Handles attack on thread
         # Use it only on threads as .start_request() would block
         # This method can be passed to thread pool executor
         session = self.get_session() # get session for this thread
-        attack_object = self.create_attack_object(credential)
+        attack_object = self.create_attack_object(frow)
         if session != None:
             # offer attack object session before request
             # attack object should use the session during request
@@ -170,29 +172,29 @@ class BForce():
         # Close responce created from requesnt
         attack_object.close_responce()
 
-    def handle_attacks(self, executor, credentials):
-        # Performs attack on provided credentials using threads
+    def handle_attacks(self, executor, ftable):
+        # Performs attack on provided ftable using threads
         # Useful if attack class not using asyncio
         futures: List[asyncio.Future] = []
-        for credential in credentials:
-            future = executor.submit(self.handle_attack, credential)
+        for frow in ftable:
+            future = executor.submit(self.handle_attack, frow)
             futures.append(future)
         #concurrent.futures.wait(futures, timeout=self.tasks_wait)
         return futures
 
 
     def consumer(self):
-        # Consumes items in credentials_queue
+        # Consumes items in ftable_queue
         # Only maximum of self.total_tasks be used
         with ThreadPoolExecutor(self.total_threads) as executor:
             while True:
-                credentials = self.credentials_queue_elements(
+                ftable = self.ftable_queue_elements(
                 self.total_tasks, 0.2)
-                print(" "*40, len(credentials))
-                if not credentials:
-                    # credentials cant be empty(produser finished)
+                print(" "*40, len(ftable))
+                if not ftable:
+                    # ftable cant be empty(produser finished)
                     break
-                futures = self.handle_attacks(executor, credentials)
+                futures = self.handle_attacks(executor, ftable)
                 for future in futures:
                     future.result()
             self.close_session()
@@ -208,9 +210,10 @@ class BForce():
         
         
 class BForceAsync(BForce):
-    def __init__(self, target, credentials):
-        super().__init__(target, credentials)
-        self.total_tasks = 2000#
+    '''Performs attack on target with data from Ftable object(asyncio)'''
+    def __init__(self, target, ftable):
+        super().__init__(target, ftable)
+        self.total_tasks = 8000
 
 
     async def close_session(self):
@@ -237,10 +240,10 @@ class BForceAsync(BForce):
         # Creates async task to produser method
         return asyncio.create_task(self.producer_coroutine)
 
-    async def handle_attack(self, credential):
+    async def handle_attack(self, frow):
         # Handles attack on attack class with asyncio support
         session = self.get_session()
-        attack_object = self.create_attack_object(credential)
+        attack_object = self.create_attack_object(frow)
         if session != None:
             # this line can speed request performance
             attack_object.set_session(session)
@@ -250,12 +253,12 @@ class BForceAsync(BForce):
         # Close responce created from request
         await attack_object.close_responce()
 
-    async def handle_attacks(self, credentials):
-        # Performs attack on provided credentials using threads
+    async def handle_attacks(self, ftable):
+        # Performs attack on provided ftable using threads
         # Useful if attack class not using asyncio
         tasks:List[asyncio.Task] = []
-        for credential in credentials:
-            awaitable =  self.handle_attack(credential)
+        for frow in ftable:
+            awaitable =  self.handle_attack(frow)
             task = asyncio.ensure_future(awaitable)
             tasks.append(task)
             #task.add_done_callback(background_tasks.discard)
@@ -264,18 +267,18 @@ class BForceAsync(BForce):
 
 
     async def consumer(self):
-        # Consumes items in credentials_queue
-        # Only maximum of self.total_tasks credentials be used
+        # Consumes items in ftable_queue
+        # Only maximum of self.total_tasks ftable be used
         while True:
-            credentials = self.credentials_queue_elements(
+            ftable = self.ftable_queue_elements(
                 self.total_tasks, 0.2)
-            print("consumer credentials", credentials)
-            if not credentials:
-                # credentials cant be empty
+            print("consumer ftable", ftable)
+            if not ftable:
+                # ftable cant be empty
                 # produser may have finished
                 break
             print("consumer waiting for self.handle_attacks")
-            await self.handle_attacks(credentials)
+            await self.handle_attacks(ftable)
             print("consumer handle_attacks finished")
         # Closes session object
         await self.close_session()
@@ -297,16 +300,34 @@ if __name__ == "__main__":
     logging.basicConfig(format=format, level=logging.INFO,
                         datefmt="%H:%M:%S")
 
+    # Prepare data for attack
     url = 'https://httpbin.org/post'
-    usernames = ["david", "marry", "pearl"] * 2000
+    usernames = ["david", "marry", "pearl"] * 1000
     passwords = ["1234", "0000", "th234"]
 
-    raw_data = transform_to_map(username=usernames, password=passwords)
-    credentials = Credentials(raw_data)
+    # Creates columns for table
+    usernames_col = FColumn('usernames', usernames)
+    # Sets key name to use in row key in Table
+    usernames_col.set_item_name("username")
+    passwords_col = FColumn('passwords', passwords)
+    passwords_col.set_item_name("password")
 
+    table = FTable()
+    # Set common row to be shared by all rows
+    common_row = FRow()
+    common_row.add_item("submit", "login")
+    table.set_common_row(common_row)
+    # Add columns to table
+    table.add_column(usernames_col)
+    table.add_column(passwords_col)
+
+
+
+    
+    # starts attack
     start_time = time.time()
 
-    test_obj = BForceAsync(url, credentials)
+    test_obj = BForceAsync(url, table)
     test_obj.set_attack_class(WebAttackAsync)
     
     # see: https://stackoverflow.com/questions/45600579/
