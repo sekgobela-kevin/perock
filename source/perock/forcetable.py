@@ -12,9 +12,9 @@ Date: June 2022
 Languages: Python 3
 '''
 from typing import Iterator
-import handle_data
+import itertools
 
-dict()
+
 class FColumn():
     '''Class for operating with column data. Column data  
     may include things like 'passwords', 'usernames', etc.'''
@@ -163,19 +163,20 @@ class FTable():
         column_names = [column.get_item_name(True) for column in columns]
         # Get columns items(act as values)
         columns_items = [column.get_items() for column in columns]
-        # Create dict from 'column_names' and 'columns_items'
-        columns_map = dict(map(
-            lambda key,val:(key,val), 
-            column_names, 
-            columns_items)
-        )
-        # Creates iterator with dictionaries
-        # We can use the dictionaries to create our rows
-        # Please dont mind the function name 'create_logins_data'
-        rows_dicts = handle_data.create_logins_data(columns_map, 
-        **dict(common_row))
-        # Create and return rows
-        return cls.dicts_to_rows(rows_dicts)
+        # Use itertools.product() to get combination of values
+        for columns_items in itertools.product(*columns_items):
+            # Creates empty row object
+            row = FRow()
+            # Link back column items to their column names
+            # and then add results to row
+            for index, column_item in enumerate(columns_items):
+                # Adds column name and column item to row
+                row.add_item(column_names[index], column_item)
+                # Adds also common row to the row
+                row.add_items(common_row)
+            # itertools.product() output can be larger
+            # Appending 'row' to collection is waste of memory
+            yield row
 
     def set_common_row(self, row):
         '''Sets row with items to be shared by all rows'''
