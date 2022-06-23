@@ -17,18 +17,18 @@ from concurrent.futures import ThreadPoolExecutor
 #import concurrent.futures
 
 
-from attack import Attack
-from attack import AttackAsync
-from attack import WebAttackAsync
-from attack import WebAttack
+from .attack import Attack
+from .attack import AttackAsync
+from .attack import WebAttackAsync
+from .attack import WebAttack
 
-from forcetable import FColumn
-from forcetable import FRow
-from forcetable import FTable
+from .forcetable import FColumn
+from .forcetable import FRow
+from .forcetable import FTable
 
 # asyncio.to_thread() is New in Python version 3.9.
 # see https://docs.python.org/3/library/asyncio-task.html#id10
-from util import to_thread
+from .util import to_thread
 
 
 class BForce():

@@ -1,5 +1,5 @@
 import os
-import forcetable
+from . import forcetable
 
 
 def read_file_lines(path):

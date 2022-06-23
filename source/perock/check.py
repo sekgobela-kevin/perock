@@ -5,7 +5,7 @@ Date: June 2022
 Languages: Python 3
 '''
 
-from attempt import Attempt
+from .attempt import Attempt
 
 class Check():
     '''Checks and analyses responce from attempt to log to system

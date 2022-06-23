@@ -6,12 +6,14 @@ Author: Sekgobela Kevin
 Date: June 2022
 Languages: Python 3
 '''
-import asyncio
-from attempt import Attempt, AttemptAsync
-from check import Check
+from .attempt import Attempt
+from .attempt import AttemptAsync
+from .check import Check
 
+import asyncio
 import requests
 import aiohttp
+
 
 class Attack(Attempt, Check):
     '''Attempts to logs into system with data'''
