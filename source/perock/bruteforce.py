@@ -36,11 +36,10 @@ class BForce():
     def __init__(self, target, ftable) -> None:
         self.target = target
         self.ftable = ftable
-        self.ftable_queue = queue.Queue(maxsize=3000)
 
         # Total independed tasks to run
         # Corresponds to requests that will be executed concurrently
-        self.total_tasks = 500#
+        self.total_tasks = 500
         # Threads to use on self.total_tasks
         self.total_threads = 50 # 30 threads
         # Time to wait to complete self.total_tasks
@@ -183,29 +182,49 @@ class BForce():
         return futures
 
 
+    def done_callback(self, future):
+        self.semaphore.release()
+        #future.result()
+
+
     def consumer(self):
         # Consumes items in ftable_queue
         # Only maximum of self.total_tasks be used
         with ThreadPoolExecutor(self.total_threads) as executor:
             while True:
-                ftable = self.ftable_queue_elements(
-                self.total_tasks, 0.2)
-                print(" "*40, len(ftable))
-                if not ftable:
-                    # ftable cant be empty(produser finished)
+                # This will block until one of futures complete
+                #print("before self.semaphore.acquire()")
+                self.semaphore.acquire()
+                #print("after self.semaphore.acquire()")
+                try:
+                    print("before self.ftable_queue.get()")
+                    # Get frow if available in 0.2 seconds
+                    frow = self.ftable_queue.get(timeout=0.2)
+                except queue.Empty:
+                    # Break the loop if failed to get frow
+                    # That may mean produser finished running
                     break
-                futures = self.handle_attacks(executor, ftable)
-                for future in futures:
-                    future.result()
+                #print("before executor.submit()")
+                future = executor.submit(self.handle_attack, frow)
+                # Calls 'self.semaphore.release()' when future completes
+                #print("before future.add_done_callback()")
+                future.add_done_callback(self.done_callback)
+                #print("after future.add_done_callback()")
             self.close_session()
 
 
     def start(self):
+        # setup semaphore and queue at start
+        # sets value and maxsize to total_tasks
+        self.semaphore = threading.Semaphore(self.total_tasks)
+        self.ftable_queue = queue.Queue(self.total_tasks)
+        # stores futures from threadpoolexecutor
         futures = []
         with ThreadPoolExecutor(2) as executor:
             futures.append(executor.submit(self.producer))
             futures.append(executor.submit(self.consumer))
             for future in futures:
+                # Raises exception if there was error
                 future.result()
         
         
@@ -213,7 +232,7 @@ class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
     def __init__(self, target, ftable):
         super().__init__(target, ftable)
-        self.total_tasks = 8000
+        #self.total_tasks = 8000
 
 
     async def close_session(self):
@@ -241,9 +260,11 @@ class BForceAsync(BForce):
         return asyncio.create_task(self.producer_coroutine)
 
     async def handle_attack(self, frow):
+        print("run async def handle_attack()")
         # Handles attack on attack class with asyncio support
         session = self.get_session()
         attack_object = self.create_attack_object(frow)
+        print("after self.create_attack_object()")
         if session != None:
             # this line can speed request performance
             attack_object.set_session(session)
@@ -285,6 +306,11 @@ class BForceAsync(BForce):
 
 
     async def start(self):
+        # setup semaphore and queue at start
+        # sets value and maxsize to total_tasks
+        self.semaphore = threading.Semaphore(self.total_tasks)
+        self.ftable_queue = queue.Queue(self.total_tasks)
+        # producer and consumer as awaitables
         awaitables = [self.producer_coroutine(), self.consumer()]
         tasks = []
         for awaitable in awaitables:
