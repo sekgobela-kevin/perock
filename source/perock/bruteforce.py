@@ -41,13 +41,37 @@ class BForce():
         # Corresponds to requests that will be executed concurrently
         self.total_tasks = 500
         # Threads to use on self.total_tasks
-        self.total_threads = 50 # 30 threads
+        self.total_threads = 10
         # Time to wait to complete self.total_tasks
         self.tasks_wait = 100 
+
+        # Time to wait on each task
+        self.task_wait = 0 #10
+        # Time to for item from produser
+        self.row_put_wait = 0
+        self.row_get_wait = 0.2
 
         # store thread specific attributes
         # e.g session object
         self.thread_local = threading.local()
+
+        self.produser_completed = False
+        self.consumer_completed = False
+    
+    def set_total_threads(self, total):
+        self.total_threads = total
+
+    def set_total_tasks(self, total):
+        self.total_tasks = total
+
+    def set_task_wait(self, seconds):
+        self.task_wait = seconds
+
+    def set_input_wait(self, seconds):
+        self.input_wait = seconds
+
+    def set_output_wait(self, seconds):
+        self.output_wait = seconds
 
     def create_session(self):
         # Creates session object to be shared with attack objects
@@ -109,6 +133,7 @@ class BForce():
             # queue.put() will block if queue is already full
             #print("producer put")
             self.ftable_queue.put(frow)
+        self.produser_done_callback()
 
 
     def ftable_queue_elements(self, size=None, timeout=0.2):
@@ -187,6 +212,21 @@ class BForce():
         #future.result()
 
 
+    def consumer_done_callback(self):
+        # Called when consumer completed
+        self.consumer_completed = True
+
+    def produser_done_callback(self):
+        # Called when produser completed
+        self.produser_completed = True
+
+    def running(self):
+        # Returns True when attack is taking place
+        return self.consumer_completed or self.produser_completed
+
+    
+
+
     def consumer(self):
         # Consumes items in ftable_queue
         # Only maximum of self.total_tasks be used
@@ -210,7 +250,8 @@ class BForce():
                 #print("before future.add_done_callback()")
                 future.add_done_callback(self.done_callback)
                 #print("after future.add_done_callback()")
-            self.close_session()
+        self.close_session()
+        self.consumer_done_callback()
 
 
     def start(self):
@@ -232,7 +273,6 @@ class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
     def __init__(self, target, ftable):
         super().__init__(target, ftable)
-        self.total_tasks = 100
 
 
     async def close_session(self):
@@ -323,6 +363,7 @@ class BForceAsync(BForce):
             #print("consumer waiting for self.handle_attacks")
             await self.handle_attacks_recursive(frows)
             #print("consumer handle_attacks finished")
+        self.consumer_done_callback()
         await self.close_session()
 
 
