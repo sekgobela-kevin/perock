@@ -11,8 +11,7 @@ from .attempt import AttemptAsync
 from .check import Check
 
 import asyncio
-import requests
-import aiohttp
+import importlib
 
 
 class Attack(Attempt, Check):
@@ -94,12 +93,15 @@ class WebAttack(WebAttackMixin, Attack):
         # WebAttackMixin.__init__() and Attack.__init__()
         # should be called
         super().__init__(target, data, retries)
-        self.request: requests.Request
-        self.responce: requests.Response
+        # dynmically import requests module
+        self.requests = importlib.import_module("requests")
+        self.request: self.requests.Request
+        self.responce: self.requests.Response
 
     @classmethod
     def create_session(cls):
         # Creates session object to use with request
+        requests = importlib.import_module("requests")
         return requests.Session()
 
     def request(self):
@@ -107,7 +109,7 @@ class WebAttack(WebAttackMixin, Attack):
         if session == None:
             # session object wasnt provided
             # we then perform request direcly
-            return requests.post(self.target, data=self.data)
+            return self.requests.post(self.target, data=self.data)
         else:
             # session would improve request performance
             return session.post(self.target, data=self.data)
@@ -131,8 +133,10 @@ class WebAttack(WebAttackMixin, Attack):
 class WebAttackAsync(WebAttackMixin, AttackAsync):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
-        self.request: aiohttp.ClientRequest
-        self.responce: aiohttp.ClientResponse
+        # Dynamically import aiohttp
+        self.aiohttp = importlib.import_module("aiohttp")
+        self.request: self.aiohttp.ClientRequest
+        self.responce: self.aiohttp.ClientResponse
 
     def responce_status_code(self, responce):
         # Access status code from responce
@@ -141,6 +145,7 @@ class WebAttackAsync(WebAttackMixin, AttackAsync):
     @classmethod
     def create_session(cls):
         # Creates session object to use with request
+        aiohttp = importlib.import_module("aiohttp")
         return aiohttp.ClientSession()
 
     async def request(self):
