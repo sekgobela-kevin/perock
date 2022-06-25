@@ -107,7 +107,7 @@ class BForce():
         # Added ftable to ftable queue
         for frow in self.ftable:
             # queue.put() will block if queue is already full
-            print("producer put")
+            #print("producer put")
             self.ftable_queue.put(frow)
 
 
@@ -197,7 +197,7 @@ class BForce():
                 self.semaphore.acquire()
                 #print("after self.semaphore.acquire()")
                 try:
-                    print("before self.ftable_queue.get()")
+                    #print("before self.ftable_queue.get()")
                     # Get frow if available in 0.2 seconds
                     frow = self.ftable_queue.get(timeout=0.2)
                 except queue.Empty:
@@ -232,7 +232,7 @@ class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
     def __init__(self, target, ftable):
         super().__init__(target, ftable)
-        #self.total_tasks = 8000
+        self.total_tasks = 100
 
 
     async def close_session(self):
@@ -260,11 +260,11 @@ class BForceAsync(BForce):
         return asyncio.create_task(self.producer_coroutine)
 
     async def handle_attack(self, frow):
-        print("run async def handle_attack()")
+        #print("run async def handle_attack()")
         # Handles attack on attack class with asyncio support
         session = self.get_session()
         attack_object = self.create_attack_object(frow)
-        print("after self.create_attack_object()")
+        #print("after self.create_attack_object()")
         if session != None:
             # this line can speed request performance
             attack_object.set_session(session)
@@ -287,21 +287,42 @@ class BForceAsync(BForce):
         await asyncio.gather(*tasks, return_exceptions=False)
 
 
+    async def handle_attack_recursive(self, frow):
+        await self.handle_attack(frow)
+        while True:
+            try:
+                # Get frow if available in timeout
+                frow = self.ftable_queue.get(block=False)
+            except queue.Empty:
+                # Produser may have finished running
+                #print("Breaking from loop, "*2)
+                break
+            else:
+                # Perform attack again on the frow
+                #print("statrt handle attack")
+                await self.handle_attack(frow)
+                #print("handled attack")
+
+    async def handle_attacks_recursive(self, ftable):
+        tasks:List[asyncio.Task] = set()
+        for frow in ftable:
+            awaitable =  self.handle_attack_recursive(frow)
+            task = asyncio.ensure_future(awaitable)
+            tasks.add(task)
+            #task.add_done_callback(self.done_callback)
+            #task.add_done_callback(tasks.discard)
+        # run tasks asynchronously and wait for completion
+        await asyncio.gather(*tasks, return_exceptions=False)
+
+
     async def consumer(self):
         # Consumes items in ftable_queue
         # Only maximum of self.total_tasks ftable be used
-        while True:
-            ftable = self.ftable_queue_elements(
-                self.total_tasks, 0.2)
-            print("consumer ftable", ftable)
-            if not ftable:
-                # ftable cant be empty
-                # produser may have finished
-                break
-            print("consumer waiting for self.handle_attacks")
-            await self.handle_attacks(ftable)
-            print("consumer handle_attacks finished")
-        # Closes session object
+        frows = self.ftable_queue_elements(self.total_tasks, 0.2)
+        if frows:
+            #print("consumer waiting for self.handle_attacks")
+            await self.handle_attacks_recursive(frows)
+            #print("consumer handle_attacks finished")
         await self.close_session()
 
 
