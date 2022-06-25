@@ -10,6 +10,7 @@ from .attack import AttackAsync
 
 import asyncio
 import importlib
+import time
 
 
 class _WebAttackMixin():
@@ -140,6 +141,48 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
     async def content(self):
         if self.target_reached:
             return await self.responce.content()
+
+
+
+class _TestAttackMatrix(Attack):
+    '''Attack class for testing purposes'''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sleep_time = 4
+
+
+    def set_sleep_time(self, seconds):
+        self.sleep_time = seconds
+
+    def create_fake_responce(self):
+        # Creates fake responce object from target
+        class Responce():
+            elapsed_time = self.sleep_time
+            request_data = self.data
+            status = 200
+            text = "This is responce text from target"
+        return Responce()
+
+
+
+class TestAttack(_TestAttackMatrix, Attack):
+    '''Attack class for testing purposes'''
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, 1)
+
+    def request(self):
+        time.sleep(self.sleep_time)
+        return self.create_fake_responce()
+
+    
+class TestAttackAsync(_TestAttackMatrix, AttackAsync):
+    '''Asynchronous Attack class for testing purposes'''
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, 1)
+
+    async def request(self):
+        await asyncio.sleep(self.sleep_time)
+        return self.create_fake_responce()
 
 
 
