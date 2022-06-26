@@ -109,6 +109,9 @@ class FRow(dict):
         self.update({})
         self.update(items)
 
+    def get_item(self, name):
+        return self[name]
+
     def get_items(self):
         return dict(self)
 
@@ -138,6 +141,7 @@ class FTable():
     def set_primary_column(self, column):
         '''Set the column as primary column'''
         self.primary_column = column
+        self.primary_columns.add(column)
 
     def primary_column_exists(self):
         '''Checks if table ha sprimary column'''
@@ -157,6 +161,7 @@ class FTable():
     def add_primary_column(self, column):
         '''Add the column and make it one of primary columns'''
         self.primary_columns.add(column)
+        self.set_primary_column(column)
         self.add_column(column)
         self.update()
 
@@ -253,6 +258,23 @@ class FTable():
 
     def __iter__(self) -> Iterator[FRow]:
         return iter(self.rows)
+
+
+
+def get_row_primary_item(row, primary_column):
+    '''Returns primary item from row'''
+    column_name = primary_column.get_item_name(True)
+    # Rember that FRow is instance of dict
+    primary_item = row[column_name]
+    return primary_item
+
+
+def row_primary_included(row, primary_column, primary_column_items):
+    '''Returns True if primary item of row is in primary_column_items'''
+    primary_item = get_row_primary_item(row, primary_column)
+    return primary_item in primary_column_items
+
+
 
 
 
