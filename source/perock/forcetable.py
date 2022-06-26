@@ -11,7 +11,7 @@ Author: Sekgobela Kevin
 Date: June 2022
 Languages: Python 3
 '''
-from typing import Iterator
+from typing import Iterator, Set
 import itertools
 
 
@@ -35,6 +35,8 @@ class FColumn():
         # Name of each item of column
         # Usually singular of coulun name e.g 'password'
         self.item_name = None
+
+        self.primary = False
 
     def __iter__(self) -> Iterator:
         return iter(self.items)
@@ -66,6 +68,19 @@ class FColumn():
             err_msg = "Cannot get coulum item name"
             raise Exception(err_msg)
 
+    def set_primary(self):
+        # Sets the column as primary column
+        self.primary = True
+
+    def unset_primary(self):
+        # Unset column as primary column
+        self.primary = False
+
+    def is_primary(self):
+        # Returns True if column is primary column
+        return self.primary
+
+
 
 
 class FRow(dict):
@@ -94,6 +109,9 @@ class FRow(dict):
         self.update({})
         self.update(items)
 
+    def get_items(self):
+        return dict(self)
+
 
 class FTable():
     '''Represents table with data for performing attack'''
@@ -106,39 +124,79 @@ class FTable():
             Iterator with FColumn objects
         '''
         # Stores rows of table
-        self.columns: Iterator[FColumn] = columns
+        self.columns: Set[FColumn] = set(columns)
         # Stores row with items to be shared by all rows
         self.common_row = FRow()
         # Stores rows of table
-        self.rows = Iterator[FRow]
+        self.rows: Set[FRow] = set()
         # Updates rows to match with couluns
         self.update_rows()
 
+        self.primary_columns: Set[FColumn] = set()
+        self.primary_column: FColumn = None
+
+    def set_primary_column(self, column):
+        '''Set the column as primary column'''
+        self.primary_column = column
+
+    def primary_column_exists(self):
+        '''Checks if table ha sprimary column'''
+        return self.primary_column != None
+
+
     def add_column(self, column):
         '''Adds a coulumn to table'''
-        self.columns.append(column)
+        if column.is_primary():
+            # adds column to primary columns
+            self.primary_columns.add(column)
+            self.set_primary_column(column)
+        self.columns.add(column)
         # Updates rows to use the new column
         self.update()
 
-    def set_column_names(self, names):
-        '''Sets coulumn names for table'''
-        self.columns_names = names
+    def add_primary_column(self, column):
+        '''Add the column and make it one of primary columns'''
+        self.primary_columns.add(column)
+        self.add_column(column)
+        self.update()
 
-    def set_items_names(self, names):
-        '''Sets items names for table columns'''
-        self.items_names = names 
+    def get_primary_columns(self):
+        '''Returns primary column'''
+        return self.primary_columns
 
-    def get_coulumn_names(self):
+    def get_primary_column(self):
+        '''Returns primary column'''
+        return self.primary_column
+
+    def get_columns(self):
+        '''Returns primary columns'''
+        return self.columns
+
+
+    def get_rows(self):
+        '''Returns rows of the table'''
+        return self.rows
+
+
+    def get_column_names(self):
         '''Returns names of columns in table'''
-        return [column.get_name() for column in self.columns]
+        return {column.get_name() for column in self.columns}
 
     def get_item_names(self, force=False):
         '''Returns item names from table columns'''
-        return [column.get_item_name(force) for column in self.columns]
+        return {column.get_item_name(force) for column in self.columns}
 
     def get_column_items(self):
-        '''Returns items of coulums in table'''
-        return [column.get_items() for column in self.columns]
+        '''Returns items of columns in table'''
+        return {column.get_items() for column in self.columns}
+
+    def get_primary_items(self):
+        '''Returns items of primary column'''
+        if self.primary_column_exists():
+            return self.primary_column.get_items()
+        else:
+            return None
+
 
     @staticmethod
     def dicts_to_rows(dicts):
