@@ -24,6 +24,9 @@ from .forcetable import FColumn
 from .forcetable import FRow
 from .forcetable import FTable
 
+from . import forcetable
+
+
 # asyncio.to_thread() is New in Python version 3.9.
 # see https://docs.python.org/3/library/asyncio-task.html#id10
 from .util import to_thread
@@ -31,9 +34,10 @@ from .util import to_thread
 
 class BForce():
     '''Performs attack on target with data from FTable object(threaded)'''
-    def __init__(self, target, ftable) -> None:
+    def __init__(self, target, ftable:FTable) -> None:
         self.target = target
         self.ftable = ftable
+        self.primary_column = ftable.get_primary_column()
 
         # Total independed tasks to run
         # Corresponds to requests that will be executed concurrently
@@ -52,9 +56,17 @@ class BForce():
         # store thread specific attributes
         # e.g session object
         self.thread_local = threading.local()
+        self.lock = threading.Lock()
 
         self.produser_completed = False
         self.consumer_completed = False
+
+        # If False, produser would stop
+        self.produser_should_run = True
+
+        self.success_primary_items = set()
+
+
     
     def set_total_threads(self, total):
         self.total_threads = total
@@ -125,12 +137,33 @@ class BForce():
         attack_class = self.get_attack_class()
         return attack_class(self.target, data)
 
+    def should_put_row(self, frow):
+        # Returns True if row should be put to queue
+        # logic to decide if row should be put to queque
+        if self.ftable.primary_column_exists():
+            return not forcetable.row_primary_included(
+                frow, 
+                self.primary_column, 
+                self.success_primary_items
+            )
+        return False
+
+
     def producer(self):
         # Added ftable to ftable queue
         for frow in self.ftable:
-            # queue.put() will block if queue is already full
-            #print("producer put")
-            self.ftable_queue.put(frow)
+            #print(self.should_put_row(frow), self.success_primary_items)
+            if not self.produser_should_run:
+                # Clear the queue and break from the loop
+                while not self.ftable_queue.empty():
+                    try:
+                        self.ftable_queue.get(block=False)
+                    except queue.Empty:
+                        continue
+                break
+            elif self.should_put_row(frow):
+                # queue.put() will block if queue is already full
+                self.ftable_queue.put(frow)
         self.produser_done_callback()
 
 
@@ -158,12 +191,23 @@ class BForce():
 
 
 
-    def handle_attack_results(self, attack_object:Type[Attack]):
+    def success_callback(self, attack_object, frow):
+        '''Callback called when theres success'''
+        # Primary item of row is added to success primary values
+        if self.ftable.primary_column_exists():
+            primary_column = self.ftable.get_primary_column()
+            primary_item = forcetable.get_row_primary_item(frow, primary_column)
+            # Use of lock can be removed on async version
+            with self.lock:
+                self.success_primary_items.add(primary_item)
+
+    def handle_attack_results(self, attack_object:Type[Attack], frow):
         # Handles results of attack on attack object
         # start_request() was already called and finished
         # responce can be accessed with self.responce
         if not attack_object.errors():
-            logging.info("Attack sucessful: " + str(attack_object.data))
+            logging.info("Attack sucessful: " + str(frow))
+            self.success_callback(attack_object, frow)
         elif attack_object.request_failed:
             logging.info("Request filed to start: " + 
             attack_object.request_fail_msg[:100])
@@ -190,7 +234,7 @@ class BForce():
         # start the request(can take some time)
         attack_object.start_request()
         # handles results of the request
-        self.handle_attack_results(attack_object)
+        self.handle_attack_results(attack_object, frow)
         # Close responce created from requesnt
         attack_object.close_responce()
 
@@ -308,7 +352,7 @@ class BForceAsync(BForce):
             attack_object.set_session(session)
         # .start_request() needs to be coroutine method
         await attack_object.start_request()
-        self.handle_attack_results(attack_object)
+        self.handle_attack_results(attack_object, frow)
         # Close responce created from request
         await attack_object.close_responce()
 
