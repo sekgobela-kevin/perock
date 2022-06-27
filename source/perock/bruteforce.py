@@ -49,7 +49,7 @@ class BForce():
 
         # Time to wait on each task
         self.task_wait = 0 #10
-        # Time to for item from produser
+        # Time to for item from producer
         self.row_put_wait = 0
         self.row_get_wait = 0.2
 
@@ -58,11 +58,11 @@ class BForce():
         self.thread_local = threading.local()
         self.lock = threading.Lock()
 
-        self.produser_completed = False
+        self.producer_completed = False
         self.consumer_completed = False
 
-        # If False, produser would stop
-        self.produser_should_run = True
+        # If False, producer would stop
+        self.producer_should_run = True
 
         self.success_primary_items = set()
 
@@ -153,7 +153,7 @@ class BForce():
         # Added ftable to ftable queue
         for frow in self.ftable:
             #print(self.should_put_row(frow), self.success_primary_items)
-            if not self.produser_should_run:
+            if not self.producer_should_run:
                 # Clear the queue and break from the loop
                 while not self.ftable_queue.empty():
                     try:
@@ -164,7 +164,7 @@ class BForce():
             elif self.should_put_row(frow):
                 # queue.put() will block if queue is already full
                 self.ftable_queue.put(frow)
-        self.produser_done_callback()
+        self.producer_done_callback()
 
 
     def ftable_queue_elements(self, size=None, timeout=0.2):
@@ -180,13 +180,13 @@ class BForce():
                 frow = self.ftable_queue.get(timeout=timeout)
             except queue.Empty:
                 # Break the loop if failed to get frow
-                # That may mean produser finished running
+                # That may mean producer finished running
                 break
             else:
                 ftable.append(frow)  
             count += 1
         # If ftable is empty, ftable_queue may be empty
-        # Produser may have stopped or timeout is too small
+        # Producer may have stopped or timeout is too small
         return ftable
 
 
@@ -258,13 +258,13 @@ class BForce():
         # Called when consumer completed
         self.consumer_completed = True
 
-    def produser_done_callback(self):
-        # Called when produser completed
-        self.produser_completed = True
+    def producer_done_callback(self):
+        # Called when producer completed
+        self.producer_completed = True
 
     def running(self):
         # Returns True when attack is taking place
-        return self.consumer_completed or self.produser_completed
+        return self.consumer_completed or self.producer_completed
 
     
 
@@ -284,7 +284,7 @@ class BForce():
                     frow = self.ftable_queue.get(timeout=0.2)
                 except queue.Empty:
                     # Break the loop if failed to get frow
-                    # That may mean produser finished running
+                    # That may mean producer finished running
                     break
                 #print("before executor.submit()")
                 future = executor.submit(self.handle_attack, frow)
@@ -338,7 +338,7 @@ class BForceAsync(BForce):
         return await to_thread(self.producer)
 
     def producer_task(self):
-        # Creates async task to produser method
+        # Creates async task to producer method
         return asyncio.create_task(self.producer_coroutine)
 
     async def handle_attack(self, frow):
@@ -376,7 +376,7 @@ class BForceAsync(BForce):
                 # Get frow if available in timeout
                 frow = self.ftable_queue.get(block=False)
             except queue.Empty:
-                # Produser may have finished running
+                # Producer may have finished running
                 #print("Breaking from loop, "*2)
                 break
             else:
