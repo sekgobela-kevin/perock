@@ -23,6 +23,7 @@ import time
 import asyncio
 from concurrent.futures import InvalidStateError, ThreadPoolExecutor
 from concurrent.futures import Future
+from concurrent.futures import Executor
 #from concurrent.futures import as_completed
 #import concurrent.futures
 
@@ -53,7 +54,7 @@ class BForce():
         # Corresponds to requests that will be executed concurrently
         self.total_tasks = 500
         # Threads to use on self.total_tasks
-        self.total_threads = 10
+        self.total_threads = None
         # Time to wait to complete self.total_tasks
         self.tasks_wait = 100 
 
@@ -90,9 +91,28 @@ class BForce():
         # Stores consumer tasks not yet completed
         self.current_tasks: Set[Future] = set()
 
+        self.executor: Executor = None
+        self.max_workers = None
+
+    def set_executor(self, executor):
+        # Sets executo to use e.g TheadPoolExecutor
+        self.executor = executor
+
+    def set_max_workers(self, max_workers):
+        # Sets max workers for executor
+        self.max_workers = max_workers
+
+    def create_or_get_executor(self):
+        # Gets executor or create one if not set
+        if self.executor == None:
+            return ThreadPoolExecutor(self.max_workers)
+        else:
+            return self.executor
+
     
     def set_total_threads(self, total):
         self.total_threads = total
+        self.set_max_workers(self, total)
 
     def set_total_tasks(self, total):
         self.total_tasks = total
@@ -447,30 +467,30 @@ class BForce():
     
 
 
-    def consumer(self):
+    def consumer(self, executor=None):
         # Consumes items in ftable_queue
-        # Only maximum of self.total_tasks be used
-        with ThreadPoolExecutor(self.total_threads) as executor:
-            while True:
-                # This will block until one of futures complete
-                #print("before self.semaphore.acquire()")
-                self.semaphore.acquire()
-                #print("after self.semaphore.acquire()")
-                try:
-                    #print("before self.ftable_queue.get()")
-                    # Get frow if available in 0.2 seconds
-                    frow = self.ftable_queue.get(timeout=0.2)
-                except queue.Empty:
-                    # Break the loop if failed to get frow
-                    # That may mean producer finished running
-                    break
-                #print("before executor.submit()")
-                future = executor.submit(self.handle_attack, frow)
-                # Calls 'self.semaphore.release()' when future completes
-                self.current_tasks.add(future)
-                #print("before future.add_done_callback()")
-                future.add_done_callback(self.task_done_callback)
-                #print("after future.add_done_callback()")
+        if executor == None:
+            executor = self.create_or_get_executor()
+        while True:
+            # This will block until one of futures complete
+            #print("before self.semaphore.acquire()")
+            self.semaphore.acquire()
+            #print("after self.semaphore.acquire()")
+            try:
+                #print("before self.ftable_queue.get()")
+                # Get frow if available in 0.2 seconds
+                frow = self.ftable_queue.get(timeout=0.2)
+            except queue.Empty:
+                # Break the loop if failed to get frow
+                # That may mean producer finished running
+                break
+            #print("before executor.submit()")
+            future = executor.submit(self.handle_attack, frow)
+            # Calls 'self.semaphore.release()' when future completes
+            self.current_tasks.add(future)
+            #print("before future.add_done_callback()")
+            future.add_done_callback(self.task_done_callback)
+            #print("after future.add_done_callback()")
         self.close_session()
         self.consumer_done_callback()
 
@@ -480,14 +500,17 @@ class BForce():
         # sets value and maxsize to total_tasks
         self.semaphore = threading.Semaphore(self.total_tasks)
         self.ftable_queue = queue.Queue(self.total_tasks)
+        
         # stores futures from threadpoolexecutor
         futures = []
-        with ThreadPoolExecutor(2) as executor:
-            futures.append(executor.submit(self.producer))
-            futures.append(executor.submit(self.consumer))
-            for future in futures:
-                # Raises exception if there was error
-                future.result()
+        executor = self.create_or_get_executor()
+        futures.append(executor.submit(self.producer))
+        futures.append(executor.submit(self.consumer, executor))
+        for future in futures:
+            # Raises exception if there was error
+            future.result()
+        if self.executor == None:
+            executor.shutdown(True)
         
         
 class BForceAsync(BForce):
