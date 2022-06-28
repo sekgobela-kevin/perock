@@ -15,13 +15,14 @@ Date: June 2022
 Languages: Python 3
 '''
 
-from typing import Callable, Dict, List, Type
+from typing import Callable, Dict, List, Set, Type
 import logging
 import queue
 import threading
 import time
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import InvalidStateError, ThreadPoolExecutor
+from concurrent.futures import Future
 #from concurrent.futures import as_completed
 #import concurrent.futures
 
@@ -85,6 +86,9 @@ class BForce():
 
         # Adds default/startup producer methods to 
         self._add_default_produsers()
+
+        # Stores consumer tasks not yet completed
+        self.current_tasks: Set[Future] = set()
 
     
     def set_total_threads(self, total):
@@ -303,6 +307,7 @@ class BForce():
                         # Consumer may have captured the FRows
                         self.clear_queue(self.ftable_queue)
                         break
+                        
         else:
             err_msg = f"Current producer requires primary column"
             raise Exception(err_msg)
@@ -412,10 +417,19 @@ class BForce():
         #concurrent.futures.wait(futures, timeout=self.tasks_wait)
         return futures
 
+    def get_current_tasks(self):
+        # Returns currently runningg tasks(fututes)
+        return self.current_tasks
 
-    def done_callback(self, future):
+    def cancel_current_tasks(self):
+        # Cancels current tasks
+        for task in self.current_tasks:
+            task.cancel()
+
+    def task_done_callback(self, future: Future):
+        # Called when task completes
         self.semaphore.release()
-        #future.result()
+        self.current_tasks.discard(future)
 
 
     def consumer_done_callback(self):
@@ -453,8 +467,9 @@ class BForce():
                 #print("before executor.submit()")
                 future = executor.submit(self.handle_attack, frow)
                 # Calls 'self.semaphore.release()' when future completes
+                self.current_tasks.add(future)
                 #print("before future.add_done_callback()")
-                future.add_done_callback(self.done_callback)
+                future.add_done_callback(self.task_done_callback)
                 #print("after future.add_done_callback()")
         self.close_session()
         self.consumer_done_callback()
@@ -479,6 +494,7 @@ class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
     def __init__(self, target, ftable):
         super().__init__(target, ftable)
+        self.current_tasks: Set[asyncio.Task]
 
 
     async def close_session(self):
@@ -550,13 +566,14 @@ class BForceAsync(BForce):
                 #print("handled attack")
 
     async def handle_attacks_recursive(self, ftable):
-        tasks:List[asyncio.Task] = set()
+        tasks:Set[asyncio.Task] = set()
         for frow in ftable:
             awaitable =  self.handle_attack_recursive(frow)
             task = asyncio.ensure_future(awaitable)
             tasks.add(task)
-            #task.add_done_callback(self.done_callback)
-            #task.add_done_callback(tasks.discard)
+            self.current_tasks.add(task)
+            task.add_done_callback(tasks.discard)
+            task.add_done_callback(self.task_done_callback)
         # run tasks asynchronously and wait for completion
         await asyncio.gather(*tasks, return_exceptions=False)
 
