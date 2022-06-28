@@ -247,6 +247,9 @@ class FTable():
         # update rows to use the new common row
         self.update()
 
+    def get_common_row(self):
+        return self.common_row
+
     def update_rows(self):
         '''Updates table rows to keep-up with columns'''
         self.rows = self.columns_to_rows(self.columns, self.common_row)
