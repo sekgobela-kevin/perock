@@ -75,6 +75,7 @@ class BForce():
 
         # If False, producer would stop
         self.producer_should_run = True
+        self.consumer_should_run = True
 
         # Primary items of cracked rows
         self.success_primary_items = set()
@@ -83,7 +84,7 @@ class BForce():
         self.producers_map: Dict[str, Callable]
         self.producers_map = dict() # {'method_name': method}
         # Set the current current producer name
-        self.current_producer_name = 'producer_loop_all'
+        self.current_producer_name = 'loop_all'
 
         # Adds default/startup producer methods to 
         self._add_default_produsers()
@@ -112,7 +113,7 @@ class BForce():
     
     def set_total_threads(self, total):
         self.total_threads = total
-        self.set_max_workers(self, total)
+        self.set_max_workers(total)
 
     def set_total_tasks(self, total):
         self.total_tasks = total
@@ -263,11 +264,11 @@ class BForce():
             #print(self.should_put_row(frow), self.success_primary_items)
             if not self.producer_should_run:
                 # Clear the queue and break from the loop
-                self.clear_queue(self.ftable_queue)
+                self.clear_queue(self.frows_queue)
                 break
             elif self.should_put_row(frow):
                 # queue.put() will block if queue is already full
-                self.ftable_queue.put(frow)
+                self.frows_queue.put(frow)
 
     def producer_loop_some(self):
         '''
@@ -317,15 +318,15 @@ class BForce():
                     if not self.producer_should_run:
                         # Clear remaining queue items and return method
                         # Consumer may continue running
-                        self.clear_queue(self.ftable_queue)
+                        self.clear_queue(self.frows_queue)
                         return
                     elif self.should_put_row(frow):
                         # Put frow to queque
-                        self.ftable_queue.put(frow)
+                        self.frows_queue.put(frow)
                     else:
                         # Clear remaining FRows and try next primary item
                         # Consumer may have captured the FRows
-                        self.clear_queue(self.ftable_queue)
+                        self.clear_queue(self.frows_queue)
                         break
                         
         else:
@@ -356,17 +357,17 @@ class BForce():
 
 
 
-    def ftable_queue_elements(self, size=None, timeout=0.2) -> List[FRow]:
-        # Accesses size items from ftable_queue
+    def frows_queue_elements(self, size=None, timeout=0.2) -> List[FRow]:
+        # Accesses size items from frows_queue
         # If size is None, accesses from current qsize()
         if size == None:
-            size = self.ftable_queue.qsize()
+            size = self.frows_queue.qsize()
         ftable = []
         count = 0
         while count < size:
             try:
                 # Get frow if available in timeout
-                frow = self.ftable_queue.get(timeout=timeout)
+                frow = self.frows_queue.get(timeout=timeout)
             except queue.Empty:
                 # Break the loop if failed to get frow
                 # That may mean producer finished running
@@ -374,7 +375,7 @@ class BForce():
             else:
                 ftable.append(frow)  
             count += 1
-        # If ftable is empty, ftable_queue may be empty
+        # If ftable is empty, frows_queue may be empty
         # Producer may have stopped or timeout is too small
         return ftable
 
@@ -464,33 +465,64 @@ class BForce():
         # Returns True when attack is taking place
         return self.consumer_completed or self.producer_completed
 
-    
+    def cancel_producer(self):
+        # Requests producer to stop running
+        self.producer_should_run = False
+
+    def cancel_consumer(self):
+        # Requests producer to stop running
+        self.consumer_should_run = False
+
+
+    def consumer_should_continue(self):
+        # Checks if consumer should continue running
+        if not self.consumer_should_run:
+            return False
+        elif self.frows_queue.empty() and self.producer_completed:
+            # Producer completed and its items were consumed
+            return False
+        else :
+            return True
+
+    def producer_should_continue(self):
+        # Checks if producer should continue running
+        return self.producer_should_run
+
+
+    def consumer_get_queue_frow(self):
+        # Gets Frow from frows queue for consumer
+        while self.consumer_should_continue():
+            # wait until producer put frow or consumer should stop
+            try:
+                return self.frows_queue.get(block=False)
+            except queue.Empty:
+                # continue to check if consumer should run
+                # we cannot just terminate the loop.
+                # producer may put the at any moment.
+                continue
+        # Producer completed and ran out of Frows
+        # None means theres no any FRows left
+        return None
+        
 
 
     def consumer(self, executor=None):
-        # Consumes items in ftable_queue
+        # Consumes items in frows_queue
         if executor == None:
             executor = self.create_or_get_executor()
         while True:
-            # This will block until one of futures complete
-            #print("before self.semaphore.acquire()")
+            # This will block until one of futures/tasks complete
             self.semaphore.acquire()
-            #print("after self.semaphore.acquire()")
-            try:
-                #print("before self.ftable_queue.get()")
-                # Get frow if available in 0.2 seconds
-                frow = self.ftable_queue.get(timeout=0.2)
-            except queue.Empty:
-                # Break the loop if failed to get frow
-                # That may mean producer finished running
+            # This will wait until frow is available
+            # Returns None if consumer should not continue running
+            frow = self.consumer_get_queue_frow()
+            if frow != None:
+                future = executor.submit(self.handle_attack, frow)
+                self.current_tasks.add(future)
+                future.add_done_callback(self.task_done_callback)
+            else:
+                # Consumer should stop as it ran out of frows
                 break
-            #print("before executor.submit()")
-            future = executor.submit(self.handle_attack, frow)
-            # Calls 'self.semaphore.release()' when future completes
-            self.current_tasks.add(future)
-            #print("before future.add_done_callback()")
-            future.add_done_callback(self.task_done_callback)
-            #print("after future.add_done_callback()")
         self.close_session()
         self.consumer_done_callback()
 
@@ -499,7 +531,7 @@ class BForce():
         # setup semaphore and queue at start
         # sets value and maxsize to total_tasks
         self.semaphore = threading.Semaphore(self.total_tasks)
-        self.ftable_queue = queue.Queue(self.total_tasks)
+        self.frows_queue = queue.Queue(self.total_tasks)
         
         # stores futures from threadpoolexecutor
         futures = []
@@ -575,18 +607,13 @@ class BForceAsync(BForce):
     async def handle_attack_recursive(self, frow):
         await self.handle_attack(frow)
         while True:
-            try:
-                # Get frow if available in timeout
-                frow = self.ftable_queue.get(block=False)
-            except queue.Empty:
-                # Producer may have finished running
-                #print("Breaking from loop, "*2)
-                break
-            else:
+            frow = self.consumer_get_queue_frow()
+            if frow != None:
                 # Perform attack again on the frow
-                #print("statrt handle attack")
                 await self.handle_attack(frow)
-                #print("handled attack")
+            else:
+                # Stop performing any other tasks
+                break
 
     async def handle_attacks_recursive(self, ftable):
         tasks:Set[asyncio.Task] = set()
@@ -602,15 +629,25 @@ class BForceAsync(BForce):
 
 
     async def consumer(self):
-        # Consumes items in ftable_queue
-        # Only maximum of self.total_tasks ftable be used
-        frows = self.ftable_queue_elements(self.total_tasks, 0.2)
-        if frows:
-            # Attacks until all FRows in self.ftable are completed
-            # Completion of one task is start of onother
-            # until all tasks are completed
-            await self.handle_attacks_recursive(frows)
-            #print("consumer handle_attacks finished")
+        # Consumes items in frows_queue
+        tasks:Set[asyncio.Task] = set()
+        count = 0
+        # The while loop can be replaced by Semaphore object
+        while count < self.total_tasks:
+            frow = self.consumer_get_queue_frow()
+            if frow != None:
+                awaitable =  self.handle_attack_recursive(frow)
+                task = asyncio.create_task(awaitable)
+                tasks.add(task)
+                self.current_tasks.add(task)
+                task.add_done_callback(tasks.discard)
+                task.add_done_callback(self.task_done_callback)
+            else:
+                break
+            count += 1
+        # wait for the executed tasks to complete
+        # completion of one task is start of another task
+        await asyncio.wait(tasks)
         self.consumer_done_callback()
         await self.close_session()
 
@@ -619,7 +656,7 @@ class BForceAsync(BForce):
         # setup semaphore and queue at start
         # sets value and maxsize to total_tasks
         self.semaphore = threading.Semaphore(self.total_tasks)
-        self.ftable_queue = queue.Queue(self.total_tasks)
+        self.frows_queue = queue.Queue(self.total_tasks)
         # producer and consumer as awaitables
         awaitables = [self.producer_coroutine(), self.consumer()]
         tasks = []
