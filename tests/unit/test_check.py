@@ -6,14 +6,24 @@ from perock.check import Check
 class TestCheckCommon(TestAttemptSetUp):
     def setUp(self):
         super().setUp()
-        self.attempt.start_request()
-        self.attempt2.start_request()
-        self.attempt3.request_should_fail = True
-        self.attempt3.start_request()
+        self.create_check_objects()
+        self.check_start_request()
 
+
+    def create_check_objects(self):
+        # Initialises Check objects
         self.check = Check(self.attempt)
         self.check2 = Check(self.attempt2)
         self.check3 = Check(self.attempt3)
+
+    def check_start_request(self):
+        # Calls .start_request() of Attack objects
+        # self.attack.start_request() would cause problems
+        # if this class is inherited.
+        self.check.get_attempt_object().start_request()
+        self.check2.get_attempt_object().start_request()
+        self.check3.get_attempt_object().request_should_fail = True
+        self.check3.get_attempt_object().start_request()
 
     def test_get_attempt_object(self):
         self.assertEqual(self.check.get_attempt_object(), self.attempt)
