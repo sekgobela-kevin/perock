@@ -34,32 +34,37 @@ class TestAttackCommon(TestAttemptCommon, TestCheckCommon):
     def setUp(self):
         super().setUp()
         super(TestCheckCommon, self).setUp()
+        self.create_attack_objects()
 
-        # Initialise attack objects
-        self.attack = SampleAttack(self.target, self.data)
-        self.attack2 = SampleAttack(self.target, self.data2)
-        self.attack3 = SampleAttack(self.target, self.data3)
-
-        # Sets sleep sleep time to zero
-        #self.attack.set_sleep_time(0)
-        #self.attack2.set_sleep_time(0)
-        #self.attack3.set_sleep_time(0)
-
+    def create_attempt_objects(self):
         # Initialise attempt objects
         # Attack object is also attempt object(inheritance)
         self.attempt = SampleAttack(self.target, self.data)
         self.attempt2 = SampleAttack(self.target, self.data2)
         self.attempt3 = SampleAttack(self.target, self.data3)
 
-        # Initialises Check objects
+
+    def create_check_objects(self):
+        # Initialise Check objects
         # Attack object is also Check object(inheritance)
         self.check = SampleAttack(self.target, self.data)
         self.check2 = SampleAttack(self.target, self.data2)
         self.check3 = SampleAttack(self.target, self.data3)
 
-        # TestCheckCommon requires start_request() to be called
+
+    def create_attack_objects(self):
+        # Initialises attack objects
+        self.attack = SampleAttack(self.target, self.data)
+        self.attack2 = SampleAttack(self.target, self.data2)
+        self.attack3 = SampleAttack(self.target, self.data3)
+
+    def check_start_request(self):
+        # Calls .start_request() to Attempt object of Check object.
+        # Remember that Attack is subclass of Check.
+        # The objects are just Attack object in chech named variables.
         self.check.start_request()
         self.check2.start_request()
+        self.check3.request_should_fail = True
         self.check3.start_request()
 
     def test_get_attempt_object(self):

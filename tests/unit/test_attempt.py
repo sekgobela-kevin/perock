@@ -41,6 +41,10 @@ class TestAttemptSetUp():
         self.responce = Responce()
 
         # Initialise attack objects
+        self.create_attempt_objects()
+
+    def create_attempt_objects(self):
+        # Initialise attack objects
         self.attempt = SampleAttempt(self.target, self.data)
         self.attempt2 = SampleAttempt(self.target, self.data2)
         self.attempt3 = SampleAttempt(self.target, self.data3)
