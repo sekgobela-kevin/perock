@@ -65,7 +65,7 @@ class FColumn():
         elif force:
             return self.name
         else:
-            err_msg = "Cannot get coulum item name"
+            err_msg = "Column item name wasnt set"
             raise Exception(err_msg)
 
     def set_primary(self):
@@ -110,7 +110,7 @@ class FRow(dict):
         self.update(items)
 
     def get_item(self, name):
-        return self[name]
+        return self.get(name)
 
     def get_items(self):
         return dict(self)
@@ -141,7 +141,7 @@ class FTable():
     def set_primary_column(self, column):
         '''Set the column as primary column'''
         self.primary_column = column
-        self.primary_columns.add(column)
+        self.columns.add(column)
 
     def primary_column_exists(self):
         '''Checks if table ha sprimary column'''
@@ -191,9 +191,9 @@ class FTable():
         '''Returns item names from table columns'''
         return {column.get_item_name(force) for column in self.columns}
 
-    def get_column_items(self):
+    def get_columns_items(self):
         '''Returns items of columns in table'''
-        return {column.get_items() for column in self.columns}
+        return [column.get_items() for column in self.columns]
 
     def get_primary_items(self):
         '''Returns items of primary column'''
@@ -228,6 +228,8 @@ class FTable():
         columns_items = [column.get_items() for column in columns]
         # Use itertools.product() to get combination of values
         for columns_items in itertools.product(*columns_items):
+            if not columns_items:
+                break
             # Creates empty row object
             row = FRow()
             # Link back column items to their column names
