@@ -398,7 +398,7 @@ class BForce():
         if not attack_object.errors():
             logging.info("Attack sucessful: " + str(frow))
             self.success_callback(attack_object, frow)
-        elif attack_object.request_failed:
+        elif attack_object.request_failed():
             logging.info("Request filed to start: " + 
             attack_object.request_fail_msg[:100])
         elif attack_object.client_errors():

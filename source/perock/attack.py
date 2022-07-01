@@ -23,11 +23,17 @@ class Attack(Attempt, Check):
         # I hope this does not add performance overhead(but it works)
         Check.__init__(self, self)
 
-    def responce_errors(self):
-        '''Returns True if responce from target has errors'''
-        if self.target_reached:
-            return self.errors()
-        return super().responce_errors()
+    def after_start_request(self):
+        # Called after start_request() completes
+        super().after_start_request()
+        if self.responce_errors():
+            # The error messages are not detailed
+            # Subclasses will have to define detailed ones
+            main_err_msg = "Target experienced errors"
+            if self.target_errors():
+                self.responce_err_msg = f"{main_err_msg}(fault 'Target')"
+            elif self.client_errors():
+                self.responce_err_msg = f"{main_err_msg}(fault 'Client')"
 
 
 class AttackAsync(AttemptAsync, Check):

@@ -47,9 +47,10 @@ class Attempt():
 
     def validate_data(self, data):
         '''Checks if data is in valid for request'''
-        if not isinstance(data, dict):
-            err_msg = "data needs to be in dictionary form"
-            raise TypeError(err_msg)
+        # if not isinstance(data, dict):
+        #     #err_msg = "data needs to be in dictionary form"
+        #     #raise TypeError(err_msg)
+        #     return False
         return True
 
     @classmethod
@@ -81,6 +82,13 @@ class Attempt():
             #err_msg = "session object not found"
             #err_msg2 = "please set session with .set_session()"
             #raise AttributeError(err_msg, err_msg2)
+            pass
+
+    def get_responce(self):
+        '''Returns responce from target'''
+        if self.target_reached():
+            return self.responce
+        return None
         
 
     def request(self):
@@ -91,10 +99,6 @@ class Attempt():
         err_msg = "request() method not implemented"
         raise NotImplementedError(err_msg)
 
-    def start_request(self, retries=1):
-        super().start_request()
-        self.responce.close()
-
     def before_start_request(self):
         # Called im,edeiately when start_request() is called
         if not self.validate_data(self.data):
@@ -104,17 +108,9 @@ class Attempt():
 
     def after_start_request(self):
         # Called after start_request() completes
-        if self.target_reached:
-            # The error messages are not detailed
-            # Subclasses will have to define detailed ones
-            main_err_msg = "Target experienced errors"
-            if self.target_errors():
-                self.responce_err_msg = f"{main_err_msg}(fault 'Target')"
-            elif self.client_errors():
-                self.responce_err_msg = f"{main_err_msg}(fault 'Client')"
+        pass
 
 
-    @property
     def request_failed(self):
         '''Checks if request failed(exception was raised)'''
         # Returns True if request failed
@@ -134,10 +130,9 @@ class Attempt():
                 self.request_fail_msg = str(e)
             if not self.request_failed:
                 break
-        self.before_start_request()
+        self.after_start_request()
         
 
-    @property
     def target_reached(self):
         '''Checks if target was reached. Target was reached
         if target was able to receive request and return responce.'''
@@ -145,7 +140,7 @@ class Attempt():
         # This means the target responded
         if self.responce == None:
             return False
-        return not self.request_failed
+        return not self.request_failed()
 
 
 

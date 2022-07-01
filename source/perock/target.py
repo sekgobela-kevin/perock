@@ -5,6 +5,8 @@ Date: June 2022
 Languages: Python 3
 '''
 from typing import Iterable
+import time 
+
 from .forcetable import FRow
 
 
@@ -18,6 +20,11 @@ class Target():
     '''Base class for creating target'''
     def __init__(self, accounts: Iterable[Account]=[]) -> None:
         self._accounts = list(accounts)
+        self.responce_time = 0
+    
+    def set_responce_time(self, seconds):
+        # Sets to sleep while waiting creating responce
+        self.responce_wait = seconds
 
     def add_account(self, account):
         # Adds account to target
@@ -79,6 +86,7 @@ class Target():
 
     def login(self, account):
         # Logs into target with account
+        time.sleep(self.responce_time)
         if self.access_denied(account):
             return self.access_denied_responce(account)
         elif self.client_error_detected(account):

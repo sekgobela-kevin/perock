@@ -37,15 +37,17 @@ class Check():
         # Returns True if there were errors on client
         # This means request failed to even start
         # e.g 'Invalid url' or 'no internet connection'
-        return self._attempt_object.request_failed
+        return self._attempt_object.request_failed()
 
     def errors(self):
         '''Returns True if there errors(target or client)'''
         # Returns True if there errors
         # Error can be on client(our code) or the target(e.g webserver)
-        return self.target_errors() or self.client_errors()
+        return  self.client_errors() or self.target_errors()
 
     def responce_errors(self):
         '''Returns True if responce from target has errors'''
+        if self._attempt_object.target_reached():
+            return self.errors()
         return None
 
