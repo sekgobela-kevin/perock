@@ -80,15 +80,24 @@ class TestAttemptCommon(TestAttemptSetUp):
         self.assertEqual(self.attempt.get_session(), self.session)
 
     def test_get_responce(self):
+        # No responce as there was no request
         self.assertEqual(self.attempt.get_responce(), None)
+        
+        # Starts request
         self.attempt.start_request()
-        self.assertEqual(self.attempt.get_responce(), 
-            self.target.login(self.account)
-        )
+
+        # Gets responce messages fro responce objects
+        responce_message = self.attempt.request().get_message()
+        responce2_message = self.target.login(self.account).get_message()
+        # Test if the responce message are equal
+        self.assertEqual(responce_message, responce2_message)
 
     def test_request(self):
-        responce = self.attempt.request()
-        self.assertEqual(responce, self.target.login(self.account))
+        # Gets responce messages fro responce objects
+        responce_message = self.attempt.request().get_message()
+        responce2_message = self.target.login(self.account).get_message()
+
+        self.assertEqual(responce_message, responce2_message)
         self.attempt.request_should_fail = True
         responce = self.attempt.request()
         self.assertEqual(responce, self.attempt.fail_responce)

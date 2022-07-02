@@ -80,7 +80,7 @@ class TestFColumnCommon():
 
 
 
-class TestFTableCommon(unittest.TestCase):
+class TestFTableSetUp():
     def setUp(self):
         # Column items
         self.usernames = ["Marry", "Bella", "Michael"]
@@ -118,6 +118,11 @@ class TestFTableCommon(unittest.TestCase):
             {'password': 'th234', 'submit': 'login', 'username': 'Bella'}, 
             {'password': 'th234', 'submit': 'login', 'username': 'Michael'}
         ]
+
+
+class TestFTableCommon(TestFTableSetUp):
+    def setUp(self):
+        super().setUp()
 
     def test_set_primary_column(self):
         self.empty_ftable.set_primary_column(self.usernames_column)

@@ -99,6 +99,10 @@ class BForce():
         # Sets executo to use e.g TheadPoolExecutor
         self.executor = executor
 
+    def get_executor(self) -> Executor:
+        # Returns pool executor e.g TheadPoolExecutor
+        return self.executor
+
     def set_max_workers(self, max_workers):
         # Sets max workers for executor
         self.max_workers = max_workers
@@ -143,17 +147,21 @@ class BForce():
     def close_session(self):
         if hasattr(self.thread_local, "session"):
             attack_class = self.get_attack_class()
-            attack_class.close_session(self.session)
+            attack_class.close_session(self.get_session())
 
+    def set_session(self, session):
+        # Sets session object to be used by Attack objects
+        self.thread_local.session = session
 
     def get_session(self):
         # Gets session object to be shared with attack objects
         # Realise the use of thread_local
         # self.thread_local was created from threading.local()
         if not hasattr(self.thread_local, "session"):
-            self.thread_local.session = self.create_session()
-            #if session != None:
-            #    self.thread_local.session = session
+            try:
+                self.thread_local.session = self.create_session()
+            except NotImplementedError:
+                return None
         # Returned session is thread safe
         return self.thread_local.session
 
@@ -173,7 +181,7 @@ class BForce():
     def attack_class_async(self):
         # Checks if attack class is asynchronous
         attack_class = self.get_attack_class()
-        return isinstance(attack_class, AttackAsync)
+        return issubclass(attack_class, AttackAsync)
 
     def create_attack_object(self, data) -> Attack:
         # Creates attack object with set attack class
@@ -558,13 +566,20 @@ class BForceAsync(BForce):
             attack_class = self.get_attack_class()
             await attack_class.close_session(self.session)
 
+    def set_session(self, session):
+        # Sets session object to be used by Attack objects
+        self.session = session
+
     def get_session(self):
         # Gets session object to be shared with attack objects
         # Realise that thread_local wasnt used
         # Asyncio runs tasks in same thread so session is thread safe
         # We also have choice of when to switch task compared to threads
         if not hasattr(self, "session"):
-            self.session = self.create_session()
+            try:
+                self.session = self.create_session()
+            except:
+                return None
         # Not thread safe but safe with asyncio
         return self.session
 
