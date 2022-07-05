@@ -60,15 +60,7 @@ class BForce():
         self.total_tasks = 500
         # Threads to use on self.total_tasks
         self.total_threads = None
-        # Time to wait to complete self.total_tasks
-        self.tasks_wait = 100 
-
-        # Time to wait on each task
-        self.task_wait = 0 #10
-        # Time to for item from producer
-        self.row_put_wait = 0
-        self.row_get_wait = 0.2
-
+        
         # store thread specific attributes
         # e.g session object
         self.thread_local = threading.local()
@@ -128,14 +120,6 @@ class BForce():
     def set_total_tasks(self, total):
         self.total_tasks = total
 
-    def set_task_wait(self, seconds):
-        self.task_wait = seconds
-
-    def set_input_wait(self, seconds):
-        self.input_wait = seconds
-
-    def set_output_wait(self, seconds):
-        self.output_wait = seconds
 
     def create_session(self):
         # Creates session object to be shared with attack objects
@@ -254,6 +238,13 @@ class BForce():
             except queue.Empty:
                 break
 
+    def producer_should_switch(self, frow):
+        if len(self.columns) == 1:
+            if self.success_rows:
+                return True
+        else:
+            return not self.should_put_row(frow)
+
 
     def producer_loop_all(self):
         '''
@@ -275,13 +266,10 @@ class BForce():
         put to tasks.
         '''
         for frow in self.ftable:
-            #print(self.should_put_row(frow), self.success_primary_items)
-            if not self.producer_should_run:
-                # Clear the queue and break from the loop
+            if not self.producer_should_continue():
                 self.clear_queue(self.frows_queue)
                 break
             elif self.should_put_row(frow):
-                # queue.put() will block if queue is already full
                 self.frows_queue.put(frow)
 
     def producer_loop_some(self):
@@ -313,17 +301,12 @@ class BForce():
         if self.ftable.primary_column_exists():
             for frows in self.ftable.rows_primary_grouped():
                 for frow in frows:
-                    if not self.producer_should_run:
-                        # Clear remaining queue items and return method
-                        # Consumer may continue running
+                    if not self.producer_should_continue():
                         self.clear_queue(self.frows_queue)
                         return
-                    elif self.should_put_row(frow):
-                        # Put frow to queque
+                    elif not self.producer_should_switch(frow):
                         self.frows_queue.put(frow)
                     else:
-                        # Clear remaining FRows and try next primary item
-                        # Consumer may have captured the FRows
                         self.clear_queue(self.frows_queue)
                         break
                         
@@ -380,7 +363,7 @@ class BForce():
 
 
     def attack_success_callback(self, attack_object, frow):
-        '''Callback called when theres success'''
+        # Callback called when theres success
         # Primary item of row is added to success primary values
         if self.ftable.primary_column_exists():
             primary_column = self.ftable.get_primary_column()
@@ -391,33 +374,29 @@ class BForce():
         with self.lock:
             self.success_rows.append(frow)
 
+
+    def attack_failure_callback(self, attack_object, frow):
+        # Callback called when theres failure without error after attack attempt
+        pass
+
+    def attack_error_callback(self, attack_object, frow):
+        # Callback called when theres error after attack attempt'''
+        pass
+
+
     def handle_attack_results(self, attack_object:Type[Attack], frow):
         # Handles results of attack on attack object
         # start_request() was already called and finished
         # responce can be accessed with self.responce
         if attack_object.errors():
-            if attack_object.request_error():
-                logging.info("Request filed to start: " + 
-                attack_object.request_error_msg[:100])
-            elif attack_object.client_errors():
-                logging.info("Errors due to client: " + 
-                attack_object.responce_error_msg[:100])
-            elif attack_object.target_errors():
-                logging.info("Errors on target: " + 
-                attack_object.responce_error_msg[:100])
-            else:
-                err_msg = "Cant decide what to do after attack error"
-                raise Exception(err_msg, frow)
+            self.attack_error_callback(attack_object, frow)
+        elif attack_object.failure():
+            self.attack_failure_callback(attack_object, frow)
+        elif attack_object.success():
+            self.attack_success_callback(attack_object, frow)
         else:
-            if attack_object.success():
-                logging.info("Attack sucessful: " + str(frow))
-                self.attack_success_callback(attack_object, frow)
-            elif attack_object.failure():
-                #logging.info("Attack failed: " + str(frow))
-                pass
-            else:
-                err_msg = "Not sure if attack failed or was success"
-                raise Exception(err_msg, frow)              
+            err_msg = "Not sure if attack failed or was success"
+            raise Exception(err_msg, frow)              
             
 
 
