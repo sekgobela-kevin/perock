@@ -8,3 +8,4 @@ from .forcetable import FTable
 
 from .bruteforce import BForce
 from .bruteforce import BForceAsync
+from .bruteforce import BForceBlock
