@@ -392,6 +392,7 @@ class BForce():
         # start_request() was already called and finished
         # responce can be accessed with self.responce
         if attack_object.errors():
+            print(attack_object.request_error_msg)
             self.attack_error_callback(attack_object, frow)
         elif attack_object.failure():
             self.attack_failure_callback(attack_object, frow)

@@ -1,5 +1,5 @@
 from .attack import Attack
-from .attack import AttemptAsync
+from .attack import AttackAsync
 
 from .forcetable import FColumn
 from .forcetable import FColumnFile

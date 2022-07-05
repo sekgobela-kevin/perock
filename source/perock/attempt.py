@@ -40,7 +40,7 @@ class Attempt():
 
         self.request_error_msg = None
         # output of request() when it failed
-        self.error_responce = error_responce
+        self.error_responce = object()
 
         # represents our responce
         self.responce = None

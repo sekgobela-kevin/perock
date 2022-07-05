@@ -43,7 +43,7 @@ class FColumn():
         self.primary = False
 
     def __iter__(self) -> Iterator:
-        return iter(self.items)
+        return iter(self.get_items())
 
     def set_name(self, name):
         '''Sets name of column, e.g 'usernames\''''

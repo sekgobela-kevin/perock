@@ -68,6 +68,11 @@ class Target():
             err_msg = "Account{} is not in valid form"
             raise ValueError(err_msg, account)
 
+    def add_accounts(self, accounts):
+        # Adds accounts to target
+        for account in accounts:
+            self.add_account(account)
+
     def remove_account(self, account):
         # Removes account from target
         if self.account_exists(account):
