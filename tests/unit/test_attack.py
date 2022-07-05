@@ -19,7 +19,7 @@ class SampleAttack(Attack):
             account = Account(self.data)
             return self.target.login(account)
         else:
-            return self.error_responce
+            return Exception()
 
     def set_responce(self, responce):
         self.responce = responce

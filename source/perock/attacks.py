@@ -37,22 +37,22 @@ class _WebAttackMixin():
 
     @property
     def text(self):
-        if self.target_reached:
+        if self.target_reached():
             return self.responce.text
 
     @property
     def content(self):
-        if self.target_reached:
+        if self.target_reached():
             return self.responce.content
 
     def target_errors(self):
-        if self.target_reached:
+        if self.target_reached():
             status_code = self.status_code
             return status_code >= 500 and status_code < 600
         return super().target_errors()
 
     def client_errors(self):
-        if self.target_reached:
+        if self.target_reached():
             status_code = self.status_code
             return status_code >= 400 and status_code < 500
         return super().client_errors()
@@ -92,12 +92,12 @@ class WebAttack(_WebAttackMixin, Attack):
 
     @property
     def text(self):
-        if self.target_reached:
+        if self.target_reached():
             return self.responce.text()
 
     @property
     def content(self):
-        if self.target_reached:
+        if self.target_reached():
             return self.responce.content()
 
 
@@ -134,12 +134,12 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
 
     @property
     async def text(self):
-        if self.target_reached:
+        if self.target_reached():
             return await self.responce.text()
 
     @property
     async def content(self):
-        if self.target_reached:
+        if self.target_reached():
             return await self.responce.content()
 
 
@@ -193,12 +193,9 @@ if __name__ == "__main__":
     
 
     asyncio.run(test_obj.start_request())
-    print("test_obj.request_error", test_obj.request_error)
-    print("test_obj.request_error_msg", test_obj.request_error_msg)
+    print("test_obj.request_error", test_obj.request_error())
     print("test_obj.errors()", test_obj.errors())
-    print("test_obj.target_reached", test_obj.target_reached)
+    print("test_obj.target_reached", test_obj.target_reached())
     print("test_obj.errors()", test_obj.errors())
-    #print("test_obj.responce()", test_obj.responce)
     print("test_obj.text", asyncio.run(test_obj.text))
-    print("test_obj.responce_error_msg", test_obj.responce_error_msg)
 

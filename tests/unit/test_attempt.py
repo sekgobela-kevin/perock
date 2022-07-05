@@ -18,7 +18,7 @@ class SampleAttempt(Attempt):
             account = Account(self.data)
             return self.target.login(account)
         else:
-            return self.error_responce
+            return Exception()
 
     def set_responce(self, responce):
         self.responce = responce
@@ -100,7 +100,7 @@ class TestAttemptCommon(TestAttemptSetUp):
         self.assertEqual(responce_message, responce2_message)
         self.attempt.request_should_fail = True
         responce = self.attempt.request()
-        self.assertEqual(responce, self.attempt.error_responce)
+        self.assertIsInstance(responce, Exception)
 
 
     def before_start_request(self):

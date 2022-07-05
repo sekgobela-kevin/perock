@@ -22,7 +22,6 @@ async def try_close_async(object):
         # object cannot be closed
         pass
 
-error_responce = object()
 
 class Attempt():
     '''
@@ -38,14 +37,8 @@ class Attempt():
         self.target = target
         self.data = data
 
-        self.request_exception = None
-        self.request_error_msg = None
-        # output of request() when it failed
-        self.error_responce = object()
-
         # represents our responce
         self.responce = None
-        self.responce_error_msg = None
 
     def validate_data(self, data):
         '''Checks if data is in valid for request'''
@@ -88,9 +81,7 @@ class Attempt():
 
     def get_responce(self):
         '''Returns responce from target'''
-        if self.target_reached():
-            return self.responce
-        return None
+        return self.responce
         
 
     def request(self):
@@ -118,13 +109,16 @@ class Attempt():
         # Returns True if request failed
         # request_error() is to simple
         # Subclasses can implement it further
-        return self.responce == self.error_responce
+        return isinstance(self.responce, Exception)
 
     def start_request(self, retries=1):
         '''Start a request and update internal attributes based on
         returned responce'''
         self.before_start_request()
-        self.responce =  self.request()
+        try:
+            self.responce =  self.request()
+        except Exception as e:
+            self.responce = e
         self.after_start_request()
         
 
@@ -164,14 +158,10 @@ class AttemptAsync(Attempt):
         '''Start a request and update internal attributes based on
         returned responce'''
         self.before_start_request()
-        for _ in range(retries):
-            try:
-                self.responce =  await self.request()
-            except Exception as e:
-                self.responce = self.error_responce
-                self.request_error_msg = str(e)
-            if not self.request_error:
-                break
+        try:
+            self.responce =  await self.request()
+        except Exception as e:
+            self.responce = e
         self.after_start_request()
 
 
