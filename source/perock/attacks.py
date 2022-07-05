@@ -25,7 +25,7 @@ class _WebAttackMixin():
     def after_request(self):
         # Method is excuted after request completes
         if self.responce_errors():
-            self.responce_err_msg = self.responce.reason
+            self.responce_error_msg = self.responce.reason
 
     def responce_status_code(self, responce):
         # Access status code from responce
@@ -193,12 +193,12 @@ if __name__ == "__main__":
     
 
     asyncio.run(test_obj.start_request())
-    print("test_obj.request_failed", test_obj.request_failed)
-    print("test_obj.request_fail_msg", test_obj.request_fail_msg)
+    print("test_obj.request_error", test_obj.request_error)
+    print("test_obj.request_error_msg", test_obj.request_error_msg)
     print("test_obj.errors()", test_obj.errors())
     print("test_obj.target_reached", test_obj.target_reached)
     print("test_obj.errors()", test_obj.errors())
     #print("test_obj.responce()", test_obj.responce)
     print("test_obj.text", asyncio.run(test_obj.text))
-    print("test_obj.responce_err_msg", test_obj.responce_err_msg)
+    print("test_obj.responce_error_msg", test_obj.responce_error_msg)
 

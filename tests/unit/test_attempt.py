@@ -18,7 +18,7 @@ class SampleAttempt(Attempt):
             account = Account(self.data)
             return self.target.login(account)
         else:
-            return self.fail_responce
+            return self.error_responce
 
     def set_responce(self, responce):
         self.responce = responce
@@ -100,7 +100,7 @@ class TestAttemptCommon(TestAttemptSetUp):
         self.assertEqual(responce_message, responce2_message)
         self.attempt.request_should_fail = True
         responce = self.attempt.request()
-        self.assertEqual(responce, self.attempt.fail_responce)
+        self.assertEqual(responce, self.attempt.error_responce)
 
 
     def before_start_request(self):
@@ -112,23 +112,23 @@ class TestAttemptCommon(TestAttemptSetUp):
         pass
 
 
-    def test_request_failed(self):
-        self.assertFalse(self.attempt.request_failed())
+    def test_request_error(self):
+        self.assertFalse(self.attempt.request_error())
         self.attempt.start_request()
-        self.assertFalse(self.attempt.request_failed())
+        self.assertFalse(self.attempt.request_error())
         self.attempt.request_should_fail = True
         self.attempt.start_request()
-        self.assertTrue(self.attempt.request_failed())
+        self.assertTrue(self.attempt.request_error())
 
 
     def test_start_request(self):
         self.attempt.start_request()
-        self.assertFalse(self.attempt.request_failed())
+        self.assertFalse(self.attempt.request_error())
         self.assertTrue(self.attempt.target_reached())
 
         self.attempt.request_should_fail = True
         self.attempt.start_request()
-        self.assertTrue(self.attempt.request_failed())
+        self.assertTrue(self.attempt.request_error())
         self.assertFalse(self.attempt.target_reached())
 
     def test_target_reached(self):

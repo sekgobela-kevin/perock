@@ -31,9 +31,9 @@ class Attack(Attempt, Check):
             # Subclasses will have to define detailed ones
             main_err_msg = "Target experienced errors"
             if self.target_errors():
-                self.responce_err_msg = f"{main_err_msg}(fault 'Target')"
+                self.responce_error_msg = f"{main_err_msg}(fault 'Target')"
             elif self.client_errors():
-                self.responce_err_msg = f"{main_err_msg}(fault 'Client')"
+                self.responce_error_msg = f"{main_err_msg}(fault 'Client')"
 
 
 class AttackAsync(AttemptAsync, Check):

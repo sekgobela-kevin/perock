@@ -31,6 +31,17 @@ def group_generator(generator, group_size):
 def split_iterator(iterator, split_size):
     return iter(group_generator(iterator, split_size))
 
+def iscallable(referance):
+    # Returns True if referance is callable
+    type_str = str(type(referance))
+    if "function" in type_str:
+        return True
+    elif "method" in type_str:
+        return True
+    else:
+        return False
+
+
 if __name__ == "__main__":
     print(list(split_iterator([1,2,4,6,8,10], 4)))
     pass

@@ -100,8 +100,8 @@ class TestTargetCommon(unittest.TestCase):
         self.assertEqual(responce.get_status(), 200)
         self.assertIn("unlocked", responce.get_message())
 
-    def test_fail_responce(self):
-        responce = self.target.fail_responce(self.account)
+    def test_error_responce(self):
+        responce = self.target.error_responce(self.account)
         self.assertEqual(responce.get_status(), 200)
         self.assertIn("Failed to log", responce.get_message())
 

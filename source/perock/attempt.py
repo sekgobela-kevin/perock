@@ -22,6 +22,7 @@ async def try_close_async(object):
         # object cannot be closed
         pass
 
+error_responce = object()
 
 class Attempt():
     '''
@@ -37,13 +38,13 @@ class Attempt():
         self.target = target
         self.data = data
 
-        self.request_fail_msg = None
+        self.request_error_msg = None
         # output of request() when it failed
-        self.fail_responce = object()
+        self.error_responce = error_responce
 
         # represents our responce
         self.responce = None
-        self.responce_err_msg = None
+        self.responce_error_msg = None
 
     def validate_data(self, data):
         '''Checks if data is in valid for request'''
@@ -111,12 +112,12 @@ class Attempt():
         pass
 
 
-    def request_failed(self):
+    def request_error(self):
         '''Checks if request failed(exception was raised)'''
         # Returns True if request failed
-        # request_failed() is to simple
+        # request_error() is to simple
         # Subclasses can implement it further
-        return self.responce == self.fail_responce
+        return self.responce == self.error_responce
 
     def start_request(self, retries=1):
         '''Start a request and update internal attributes based on
@@ -126,9 +127,9 @@ class Attempt():
             try:
                 self.responce =  self.request()
             except Exception as e:
-                self.responce = self.fail_responce
-                self.request_fail_msg = str(e)
-            if not self.request_failed:
+                self.responce = self.error_responce
+                self.request_error_msg = str(e)
+            if not self.request_error:
                 break
         self.after_start_request()
         
@@ -140,7 +141,7 @@ class Attempt():
         # This means the target responded
         if self.responce == None:
             return False
-        return not self.request_failed()
+        return not self.request_error()
 
 
 
@@ -173,9 +174,9 @@ class AttemptAsync(Attempt):
             try:
                 self.responce =  await self.request()
             except Exception as e:
-                self.responce = self.fail_responce
-                self.request_fail_msg = str(e)
-            if not self.request_failed:
+                self.responce = self.error_responce
+                self.request_error_msg = str(e)
+            if not self.request_error:
                 break
         self.after_start_request()
 
@@ -201,7 +202,7 @@ if __name__ == "__main__":
     data = {'key1': 'value1', 'key2': 'value2'}
     attempt_obj = WebLogAttempt(url, data)
     attempt_obj.start_request()
-    print(attempt_obj.request_failed)
-    print(attempt_obj.request_fail_msg)
+    print(attempt_obj.request_error)
+    print(attempt_obj.request_error_msg)
     print(type(attempt_obj.text))
 

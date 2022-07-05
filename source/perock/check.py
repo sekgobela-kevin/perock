@@ -25,6 +25,11 @@ class Check():
         # That means data works and is valid for the system
         raise NotImplementedError
 
+    def failure(self):
+        # Returns True if attempt to log to system failed
+        # It may be False because of errors or target not reached
+        return not self.success()
+
     def target_errors(self):
         '''Checks if there were error at target side'''
         # Checks if there were error on target side
@@ -37,7 +42,7 @@ class Check():
         # Returns True if there were errors on client
         # This means request failed to even start
         # e.g 'Invalid url' or 'no internet connection'
-        return self._attempt_object.request_failed()
+        return self._attempt_object.request_error()
 
     def errors(self):
         '''Returns True if there errors(target or client)'''
