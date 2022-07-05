@@ -1,3 +1,22 @@
+'''
+Calculates cartesian product of iterators similar to `itertools.product()`.
+
+But also allows iterator to be a callable which should return the 
+iterator. If 'iterables' does not contain callable objects then 
+`itertools.product()` will be used.
+
+If not, cartesian product will be calculated without 'itertools.product()'
+using recursion. It ha slimitations in that it may be slower then 
+`itertools.product()` and 'RecursionError' ay be raised if callables
+or repeat argumnet are 12 or more.
+
+Using `itertools.product()` is better even if it may raise MemoryError
+on large iterables.
+
+Author: Sekgobela Kevin
+Date: July 2022
+Languages: Python 3
+'''
 import inspect
 import itertools
 from typing import Iterator
