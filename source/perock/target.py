@@ -89,7 +89,7 @@ class Target():
         message = f"The system was unlocked with {account}"
         return Responce(message, 200)
 
-    def fail_responce(self, account):
+    def error_responce(self, account):
         message = f"Failed to log into system with given credentials"
         return Responce(message, 200)
 
@@ -138,7 +138,7 @@ class Target():
         elif self.target_error_detected(account):
             return self.target_error_responce(account)
         elif self.account_fail(account):
-            return self.fail_responce(account)
+            return self.error_responce(account)
         elif self.account_success(account):
             return self.success_responce(account)
         else:

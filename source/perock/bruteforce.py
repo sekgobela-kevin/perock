@@ -43,12 +43,17 @@ from . import forcetable
 from .util import to_thread
 
 
+format = "%(asctime)s: %(message)s"
+logging.basicConfig(format=format, level=logging.INFO,
+                    datefmt="%H:%M:%S")
+
 class BForce():
     '''Performs attack on target with data from FTable object(threaded)'''
     def __init__(self, target, ftable:FTable) -> None:
         self.target = target
         self.ftable = ftable
         self.primary_column = ftable.get_primary_column()
+        self.columns = ftable.get_columns()
 
         # Total independed tasks to run
         # Corresponds to requests that will be executed concurrently
@@ -79,6 +84,7 @@ class BForce():
 
         # Primary items of cracked rows
         self.success_primary_items = set()
+        self.success_rows = []
 
         # Stores producer methods and their names
         self.producers_map: Dict[str, Callable]
@@ -305,23 +311,7 @@ class BForce():
         put to tasks.
         '''
         if self.ftable.primary_column_exists():
-            primary_column = self.ftable.get_primary_column()
-            primary_items = self.ftable.get_primary_items()
-            # other_columns needs to exclude primary column
-            other_columns = self.ftable.get_columns()
-            other_columns.discard(primary_column)
-            # This one is the common row
-            common_row = self.ftable.get_common_row()
-            # Loop each of primary column items
-            for primary_item in primary_items:
-                # Creates column for primary column
-                # Name of column is taken from primary column
-                column = FColumn(primary_column.get_name(), [primary_item])
-                column.set_item_name(primary_column.get_item_name())
-                # Merge the column with other columns
-                columns = other_columns.union([column])
-                # Creates rows the columns
-                frows = FTable.columns_to_rows(columns, common_row)
+            for frows in self.ftable.rows_primary_grouped():
                 for frow in frows:
                     if not self.producer_should_run:
                         # Clear remaining queue items and return method
@@ -389,7 +379,7 @@ class BForce():
 
 
 
-    def success_callback(self, attack_object, frow):
+    def attack_success_callback(self, attack_object, frow):
         '''Callback called when theres success'''
         # Primary item of row is added to success primary values
         if self.ftable.primary_column_exists():
@@ -398,25 +388,37 @@ class BForce():
             # Use of lock can be removed on async version
             with self.lock:
                 self.success_primary_items.add(primary_item)
+        with self.lock:
+            self.success_rows.append(frow)
 
     def handle_attack_results(self, attack_object:Type[Attack], frow):
         # Handles results of attack on attack object
         # start_request() was already called and finished
         # responce can be accessed with self.responce
-        if not attack_object.errors():
-            logging.info("Attack sucessful: " + str(frow))
-            self.success_callback(attack_object, frow)
-        elif attack_object.request_failed():
-            logging.info("Request filed to start: " + 
-            attack_object.request_fail_msg[:100])
-        elif attack_object.client_errors():
-            logging.info("Errors due to client: " + 
-            attack_object.responce_err_msg[:100])
-        elif attack_object.target_errors():
-            logging.info("Errors on target: " + 
-            attack_object.responce_err_msg[:100])
+        if attack_object.errors():
+            if attack_object.request_error():
+                logging.info("Request filed to start: " + 
+                attack_object.request_error_msg[:100])
+            elif attack_object.client_errors():
+                logging.info("Errors due to client: " + 
+                attack_object.responce_error_msg[:100])
+            elif attack_object.target_errors():
+                logging.info("Errors on target: " + 
+                attack_object.responce_error_msg[:100])
+            else:
+                err_msg = "Cant decide what to do after attack error"
+                raise Exception(err_msg, frow)
         else:
-            logging.info("Something is not right")
+            if attack_object.success():
+                logging.info("Attack sucessful: " + str(frow))
+                self.attack_success_callback(attack_object, frow)
+            elif attack_object.failure():
+                #logging.info("Attack failed: " + str(frow))
+                pass
+            else:
+                err_msg = "Not sure if attack failed or was success"
+                raise Exception(err_msg, frow)              
+            
 
 
     def handle_attack(self, frow):
@@ -459,6 +461,14 @@ class BForce():
         # Called when task completes
         self.semaphore.release()
         self.current_tasks.discard(future)
+        try:
+            future.result()
+            #self.cancel_consumer()
+            #self.cancel_producer()
+        except Exception as e:
+            self.cancel_producer()
+            raise e
+
 
 
     def consumer_done_callback(self):
@@ -511,8 +521,6 @@ class BForce():
         # Producer completed and ran out of Frows
         # None means theres no any FRows left
         return None
-        
-
 
     def consumer(self, executor=None):
         # Consumes items in frows_queue
@@ -536,12 +544,12 @@ class BForce():
 
 
     def start(self):
+        '''Starts attack into system identified by target'''
         # setup semaphore and queue at start
         # sets value and maxsize to total_tasks
         self.semaphore = threading.Semaphore(self.total_tasks)
         self.frows_queue = queue.Queue(self.total_tasks)
-        
-        # stores futures from threadpoolexecutor
+
         futures = []
         executor = self.create_or_get_executor()
         futures.append(executor.submit(self.producer))
@@ -551,6 +559,9 @@ class BForce():
             future.result()
         if self.executor == None:
             executor.shutdown(True)
+
+
+
         
         
 class BForceAsync(BForce):
@@ -680,6 +691,65 @@ class BForceAsync(BForce):
             tasks.append(task)
         await asyncio.gather(*tasks, return_exceptions=False)
 
+
+class BForceBlock(BForce):
+    def __init__(self, target, ftable: FTable) -> None:
+        super().__init__(target, ftable)
+
+    def producer_should_switch(self, frow):
+        if len(self.columns) == 1:
+            if self.success_rows:
+                return True
+        else:
+            return not self.should_put_row(frow)
+
+    def producer_loop_some(self):
+        if self.ftable.primary_column_exists():
+            for frows in self.ftable.rows_primary_grouped():
+                for frow in frows:
+                    if not self.producer_should_continue():
+                        return
+                    elif not self.producer_should_switch(frow):
+                        yield frow
+                    else:
+                        break
+        else:
+            err_msg = "FTable is missing primary column"
+            raise Exception(err_msg)
+    
+    def producer_loop_all(self):
+        for frow in self.ftable:
+            if not self.producer_should_continue():
+                break
+            elif self.should_put_row(frow):
+                yield frow
+
+    def producer(self):
+        # Gets and call current producer method
+        return self.get_current_producer_method()()
+
+    def producer_should_continue(self):
+        return self.producer_should_run
+
+    def consumer_should_continue(self):
+        return self.consumer_should_run
+
+    def handle_attack(self, frow):
+        attack_object = self.create_attack_object(frow)
+        self.handle_attack_results(attack_object, frow)
+
+    def attack_success_callback(self, attack_object, frow):
+        super().attack_success_callback(attack_object, frow)
+        #if len(self.ftable.get_columns()) == 1:
+            #self.cancel_producer()
+
+    def consumer(self):
+        for frow in self.producer():
+            self.handle_attack(frow)
+        self.consumer_done_callback()
+
+    def start(self):
+        self.consumer()
 
         
 
