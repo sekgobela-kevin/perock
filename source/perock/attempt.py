@@ -124,12 +124,7 @@ class Attempt():
         '''Start a request and update internal attributes based on
         returned responce'''
         self.before_start_request()
-        try:
-            self.responce =  self.request()
-        except Exception as e:
-            self.responce = self.error_responce
-            self.request_error_msg = str(e)
-            self.request_exception = e
+        self.responce =  self.request()
         self.after_start_request()
         
 
