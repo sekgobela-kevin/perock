@@ -158,7 +158,8 @@ class TestBForceCommon(TestBForceSetUP):
         self.assertEqual(self.bforce.get_current_producer(), "expo_producer")
 
     def test_get_current_producer(self):
-        self.assertEqual(self.bforce.get_current_producer(), "loop_all")
+        self.bforce.set_current_producer("loop_some")
+        self.assertEqual(self.bforce.get_current_producer(), "loop_some")
 
     def test_get_current_producer_method(self):
         self.bforce.add_producer_method("expo_producer", print)

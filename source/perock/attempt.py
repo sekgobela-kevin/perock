@@ -38,6 +38,7 @@ class Attempt():
         self.target = target
         self.data = data
 
+        self.request_exception = None
         self.request_error_msg = None
         # output of request() when it failed
         self.error_responce = object()
@@ -123,14 +124,12 @@ class Attempt():
         '''Start a request and update internal attributes based on
         returned responce'''
         self.before_start_request()
-        for _ in range(retries):
-            try:
-                self.responce =  self.request()
-            except Exception as e:
-                self.responce = self.error_responce
-                self.request_error_msg = str(e)
-            if not self.request_error:
-                break
+        try:
+            self.responce =  self.request()
+        except Exception as e:
+            self.responce = self.error_responce
+            self.request_error_msg = str(e)
+            self.request_exception = e
         self.after_start_request()
         
 

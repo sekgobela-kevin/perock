@@ -49,9 +49,10 @@ logging.basicConfig(format=format, level=logging.INFO,
 
 class BForce():
     '''Performs attack on target with data from FTable object(threaded)'''
-    def __init__(self, target, ftable:FTable) -> None:
+    def __init__(self, target, ftable:FTable, loop_all=False) -> None:
         self.target = target
         self._ftable = ftable
+        self.loop_all = loop_all
         self._primary_column = ftable.get_primary_column()
         self._columns = ftable.get_columns()
 
@@ -82,7 +83,10 @@ class BForce():
         self._producers_map: Dict[str, Callable]
         self._producers_map = dict() # {'method_name': method}
         # Set the current current producer name
-        self._current_producer_name = 'loop_all'
+        if self.loop_all:
+            self._current_producer_name = 'loop_all'
+        else:
+            self._current_producer_name = 'loop_some'
 
         # Adds default/startup producer methods to 
         self._add_default_produsers()
