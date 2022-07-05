@@ -11,8 +11,12 @@ Author: Sekgobela Kevin
 Date: June 2022
 Languages: Python 3
 '''
-from typing import Iterator, Set
+from io import FileIO
 import itertools
+from typing import Iterator, Set
+
+from . import product
+from . import util
 
 
 class FColumn():
@@ -26,7 +30,7 @@ class FColumn():
         name: str
             Name of column
         items: Iterator
-            Iterator with items of column
+            Iterator or callable returning items of column
         '''
         # Stores items of column, e.g 'passwords'
         self.items = items
@@ -50,9 +54,17 @@ class FColumn():
         may be 'passwords' but each of them be \'password\''''
         self.item_name = name
 
+    def items_callable(self):
+        '''Returns True if items are in callable'''
+        return util.iscallable(self.items)
+
     def get_items(self):
         '''Returns items of column'''
-        return self.items
+        if self.items_callable():
+            return self.items()
+        else:
+            return self.items
+
     
     def get_name(self):
         '''Returns name of coulumn, e.g 'usernames\''''
@@ -80,6 +92,32 @@ class FColumn():
         # Returns True if column is primary column
         return self.primary
 
+
+class FColumnFile(FColumn):
+    '''Class for creating column items from file in path''' 
+    def __init__(self, name, path) -> None:
+        self._file = open(path)
+        super().__init__(name, self._read_file_lines_callable)
+
+    def read_file_lines(self, file_object: FileIO):
+        '''Reads lines from file in path, returns generator'''
+        for line in file_object:
+            line_ = line.rstrip("\n")
+            if line_:
+                yield line_
+
+    def _read_file_lines_callable(self):
+        self._file.seek(0)
+        return self.read_file_lines(self._file)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        self._file.close()
 
 
 
@@ -225,9 +263,9 @@ class FTable():
         # 'item_name' is more suitable than 'name'(name of coulumn)
         column_names = [column.get_item_name(True) for column in columns]
         # Get columns items(act as values)
-        columns_items = [column.get_items() for column in columns]
+        columns_items = [column.get_items for column in columns]
         # Use itertools.product() to get combination of values
-        for columns_items in itertools.product(*columns_items):
+        for columns_items in product.product(*columns_items):
             if not columns_items:
                 break
             # Creates empty row object
@@ -242,6 +280,44 @@ class FTable():
             # itertools.product() output can be larger
             # Appending 'row' to collection is waste of memory
             yield row
+
+    @classmethod
+    def columns_to_rows_primary_grouped(
+        cls, 
+        columns: Set[FColumn], 
+        primary_column: FColumn, 
+        common_row=FRow()):
+        if len(columns) >= 2:
+            primary_items = primary_column.get_items()
+            # other_columns needs to exclude primary column
+            other_columns = columns.copy()
+            other_columns.discard(primary_column)
+            # Loop each of primary column items
+            primary_grouped_rows = []
+            for primary_item in primary_items:
+                # Creates column for primary column
+                # Name of column is taken from primary column
+                column = FColumn(primary_column.get_name(), [primary_item])
+                column.set_item_name(primary_column.get_item_name())
+                # Merge the column with other columns
+                columns = other_columns.union([column])
+                # Creates rows the columns
+                rows =  cls.columns_to_rows(columns, common_row)
+                primary_grouped_rows.append(rows)
+            return primary_grouped_rows
+        else:
+            return [cls.columns_to_rows(columns, common_row)]
+
+    def rows_primary_grouped(self):
+        if self.primary_column_exists():
+            return self.columns_to_rows_primary_grouped(
+                self.columns,
+                self.primary_column,
+                self.common_row
+            )
+        else:
+            err_msg = "Primary column is needed, but not found"
+            raise Exception(err_msg)
 
     def set_common_row(self, row):
         '''Sets row with items to be shared by all rows'''
