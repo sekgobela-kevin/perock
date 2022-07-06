@@ -339,9 +339,16 @@ class BForce():
         also skips FRow objects without even checking or creating them. Each
         producer method behave differently and have their pros and cons.
         '''
-        # Gets and call current producer method
-        self.get_current_producer_method()()
-        self.producer_done_callback()
+        # Error like missing primary key expected
+        try:
+            # Gets and call current producer method
+            self.get_current_producer_method()()
+        except Exception as e:
+            # Raise original exception
+            raise e
+        finally:
+            # Alert that producer finished
+            self.producer_done_callback()
 
 
 
@@ -372,6 +379,7 @@ class BForce():
     def attack_success_callback(self, attack_object, frow):
         # Callback called when theres success
         # Primary item of row is added to success primary values
+        logging.info("Target/system was unlocked: " + str(frow))
         if self._ftable.primary_column_exists():
             primary_column = self._ftable.get_primary_column()
             primary_item = forcetable.get_row_primary_item(frow, primary_column)
@@ -386,9 +394,9 @@ class BForce():
         # Callback called when theres failure without error after attack attempt
         pass
 
-    def attack_error_callback(self, attack_object, frow):
+    def attack_error_callback(self, attack_object:Attack, frow):
         # Callback called when theres error after attack attempt'''
-        pass
+        logging.info(str(attack_object.get_responce()))
 
 
     def handle_attack_results(self, attack_object:Type[Attack], frow):
@@ -396,7 +404,6 @@ class BForce():
         # start_request() was already called and finished
         # responce can be accessed with self.responce
         if attack_object.errors():
-            print(attack_object.request_error_msg)
             self.attack_error_callback(attack_object, frow)
         elif attack_object.failure():
             self.attack_failure_callback(attack_object, frow)
@@ -660,7 +667,8 @@ class BForceAsync(BForce):
             count += 1
         # wait for the executed tasks to complete
         # completion of one task is start of another task
-        await asyncio.wait(tasks)
+        if tasks:
+            await asyncio.wait(tasks)
         self.consumer_done_callback()
         await self.close_session()
 
@@ -677,6 +685,7 @@ class BForceAsync(BForce):
             task = asyncio.ensure_future(awaitable)
             tasks.append(task)
         await asyncio.gather(*tasks, return_exceptions=False)
+
 
 
 class BForceBlock(BForce):
