@@ -6,6 +6,6 @@ from .forcetable import FColumnFile
 from .forcetable import FRow
 from .forcetable import FTable
 
-from .bruteforce import BForce
-from .bruteforce import BForceAsync
-from .bruteforce import BForceBlock
+from .bforce import BForce
+from .bforce import BForceAsync
+from .bforce import BForceBlock

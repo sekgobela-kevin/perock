@@ -1,4 +1,5 @@
 import unittest
+import asyncio
 
 from common_classes import *
 from common_test import *
@@ -53,18 +54,40 @@ class BForceTest(CommonTest, unittest.TestCase):
         self.target.add_accounts(self.accounts)
 
         self.attack_class = AttackSample
+        self.attack_async_class = AttackAsyncSample
 
+        self.bforce = perock.BForce(self.target, self.ftable)
+        self.bforce.set_attack_class(self.attack_class)
+
+        self.bforce_async = perock.BForceAsync(self.target, self.ftable)
+        self.bforce_async.set_attack_class(self.attack_async_class)
+
+        self.bforce_block = perock.BForceBlock(self.target, self.ftable)
+        self.bforce_block.set_attack_class(self.attack_class)
         #attack = AttackSample(self.target, {"username":"THOMAS", "password":"marian"})
         #assert attack.success(), "Attack should be success"
 
-        self.bforce = perock.BForce(self.target, self.ftable)
-
     def test_start(self):
-        self.bforce.set_attack_class(self.attack_class)
-        self.bforce.set_current_producer("loop_some")
+        self.bforce.set_current_producer("loop_all")
         self.bforce.start()
         self.assertCountEqual(self.bforce.get_success_frows(), self.accounts)
 
+    def test_start_async(self):
+        self.bforce_async.set_current_producer("loop_all")
+        asyncio.run(self.bforce_async.start())
+        self.assertCountEqual(self.bforce_async.get_success_frows(), 
+        self.accounts)
+
+    def test_start_block(self):
+        self.bforce_block.set_current_producer("loop_all")
+        self.bforce_block.start()
+        self.assertCountEqual(self.bforce_block.get_success_frows(), 
+        self.accounts)
+
+    def test_start_loop_some(self):
+        self.bforce.set_current_producer("loop_some")
+        self.bforce.start()
+        self.assertCountEqual(self.bforce.get_success_frows(), self.accounts)
 
     @classmethod
     def tearDownClass(cls):

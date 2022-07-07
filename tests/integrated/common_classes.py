@@ -27,7 +27,7 @@ class AttackAsyncSample(perock.AttackAsync):
 
     async def request(self):
         # Returns Fake responce
-        return target.login(self.account)
+        return self.target.login(self.account)
 
     def errors(self):
         return super().errors()
