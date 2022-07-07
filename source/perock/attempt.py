@@ -61,6 +61,7 @@ class Attempt():
     def close_session(self):
         '''Closes session object'''
         try_close(self.session)
+        assert self.session.closed
 
     def close_responce(self):
         "Closes responce object"
@@ -153,9 +154,14 @@ class AttemptAsync(Attempt):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
 
+    @classmethod
+    async def create_session(cls):
+        # Creates session object to use with request
+        raise NotImplementedError
+
     async def close_session(self):
         '''Closes session object'''
-        await try_close_async(session)
+        await try_close_async(self.session)
 
     async def close_responce(self):
         "Closes responce object"

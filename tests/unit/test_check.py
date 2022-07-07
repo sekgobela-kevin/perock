@@ -1,5 +1,6 @@
 import unittest
 from .test_attempt import TestAttemptSetUp
+from .test_attempt import TestAttemptSetUpAsync
 from perock.check import Check
 
 
@@ -47,6 +48,14 @@ class TestCheckCommon(TestAttemptSetUp):
         self.assertFalse(self.check.responce_errors())
         self.assertFalse(self.check3.responce_errors())
 
+class TestCheckAsyncCommon(TestAttemptSetUpAsync):
+    pass
+
+
 
 class TestCheck(TestCheckCommon, unittest.TestCase):
+    pass
+
+
+class TestCheck(TestCheckAsyncCommon, unittest.TestCase):
     pass

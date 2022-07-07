@@ -14,7 +14,9 @@ from .common_classes import Responce
 
 from .test_forcetable import TestFTableSetUp
 from .test_attempt import TestAttemptSetUp
+from .test_attempt import TestAttemptSetUpAsync
 from .test_attack import SampleAttack
+from .test_attack import SampleAttackAsync
 
 from perock.attack import Attack
 from perock.attack import AttackAsync
@@ -31,6 +33,14 @@ class SampleAttack(SampleAttack):
         return Session()
 
 
+class SampleAttackAsync(SampleAttackAsync):
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, retries)
+
+    async def create_session():
+        return Session()
+
+
 class TestBForceSetUP(TestFTableSetUp, TestAttemptSetUp):
     @classmethod
     def setUpClass(cls):
@@ -44,6 +54,18 @@ class TestBForceSetUP(TestFTableSetUp, TestAttemptSetUp):
         self.bforce.set_attack_class(SampleAttack)
         # Has no attack class
         self.bforce_raw = BForce(self.target, self.ftable)
+
+
+class TestBForceAsyncSetUP(TestFTableSetUp, TestAttemptSetUpAsync):
+    def setUp(self):
+        super().setUp()
+        TestAttemptSetUpAsync.setUp(self)
+        self.bforce = BForceAsync(self.target, self.ftable)
+        self.bforce.set_attack_class(SampleAttackAsync)
+        # Has no attack class
+        self.bforce_raw = BForceAsync(self.target, self.ftable)
+
+
 
 class TestBForceCommon(TestBForceSetUP):
     def test_set_executor(self):
@@ -65,26 +87,10 @@ class TestBForceCommon(TestBForceSetUP):
         self.assertEqual(self.bforce.create_or_get_executor(), 
         self.process_executor)
 
-    
-    def test_set_total_threads(self):
-        # To be removed
-        pass
-
     def test_set_total_tasks(self):
-        # To be removed
+        # Hard to test
         pass
 
-    def test_set_task_wait(self):
-        # To be removed
-        pass
-
-    def test_set_input_wait(self):
-        # To be removed
-        pass
-
-    def test_set_output_wait(self):
-        # To be removed
-        pass
 
     def test_create_session(self):
         with self.assertRaises(AttributeError):
@@ -118,10 +124,7 @@ class TestBForceCommon(TestBForceSetUP):
         self.assertEqual(self.bforce.get_attack_class(), SampleAttack)
 
     def test_attack_class_async(self):
-        self.bforce.set_attack_class(Attack)
         self.assertFalse(self.bforce.attack_class_async())
-        self.bforce.set_attack_class(AttackAsync)
-        self.assertTrue(self.bforce.attack_class_async())
 
     def test_create_attack_object(self):
         attack_object = self.bforce.create_attack_object(self.data)
@@ -173,5 +176,54 @@ class TestBForceCommon(TestBForceSetUP):
         self.bforce.clear_queue(queue_object)
         self.assertTrue(queue_object.empty())
 
+
+
+class TestBForceAsyncCommon(TestBForceAsyncSetUP, TestBForceCommon):
+    def test_set_attack_class(self):
+        self.bforce_raw.set_attack_class(SampleAttackAsync)
+        self.assertEqual(self.bforce_raw.get_attack_class(), SampleAttackAsync)
+
+    def test_get_attack_class(self):
+        self.assertEqual(self.bforce.get_attack_class(), SampleAttackAsync)
+
+    def test_attack_class_async(self):
+        self.assertTrue(self.bforce.attack_class_async())
+
+    def test_create_attack_object(self):
+        attack_object = self.bforce.create_attack_object(self.data)
+        self.assertIsInstance(attack_object, SampleAttackAsync)
+        with self.assertRaises(AttributeError):
+            # bforce_raw does not hae attack class
+            self.bforce_raw.create_attack_object(self.data)
+
+    async def test_create_session(self):
+        with self.assertRaises(AttributeError):
+            # No attack class
+            await self.bforce_raw.create_session()
+        #self.assertEqual(self.bforce_raw.create_session(), None)
+        self.assertIsInstance(await self.bforce.create_session(), Session)
+
+    async def test_close_session(self):
+        self.bforce.set_session(self.session)
+        await self.bforce.close_session()
+        session = await self.bforce.get_session()
+        self.assertTrue(session.closed)
+
+
+    async def test_get_session(self):
+        with self.assertRaises(AttributeError):
+            # Theres no attack class in bforce_raw
+            # Its better to set session manually
+            await self.bforce_raw.get_session()
+        #self.assertEqual(self.bforce_raw.get_session(), None)
+        self.assertIsInstance(await self.bforce.get_session(), Session)
+        # Same session be returned
+        session = await self.bforce.get_session()
+        self.assertEqual(await self.bforce.get_session(), session)
+
+
 class TestBForce(TestBForceCommon, unittest.TestCase):
+    pass
+
+class TestBForceAsync(TestBForceAsyncCommon, unittest.IsolatedAsyncioTestCase):
     pass

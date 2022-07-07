@@ -49,6 +49,8 @@ logging.basicConfig(format=format, level=logging.INFO,
 
 class BForce():
     '''Performs attack on target with data from FTable object(threaded)'''
+    base_attack_class = Attack
+
     def __init__(self, target, ftable:FTable, loop_all=False) -> None:
         self.target = target
         self._ftable = ftable
@@ -141,13 +143,12 @@ class BForce():
             # Return session created by attack class
             return session
 
-    def close_session(self):
-        if hasattr(self._thread_local, "session"):
-            # Create fake attack object and set session
-            attack_object = self.create_attack_object(FRow())
-            attack_object.set_session(self.get_session())
-            # close the session se on the object
-            attack_object.close_session()
+
+    # Start: session methods
+
+    def session_exists(self):
+        # Returns True if session exists
+        return hasattr(self._thread_local, "session")
 
     def set_session(self, session):
         # Sets session object to be used by Attack objects
@@ -157,17 +158,33 @@ class BForce():
         # Gets session object to be shared with attack objects
         # Realise the use of thread_local
         # self._thread_local was created from threading.local()
-        if not hasattr(self._thread_local, "session"):
+        if not self.session_exists():
             try:
-                self._thread_local.session = self.create_session()
+                session = self.create_session()
             except NotImplementedError:
                 return None
+            else:
+                self.set_session(session)
         # Returned session is thread safe
         return self._thread_local.session
 
+    def close_session(self):
+        if hasattr(self._thread_local, "session"):
+            # Create fake attack object and set session
+            attack_object = self.create_attack_object(FRow())
+            attack_object.set_session(self.get_session())
+            # close the session se on the object
+            attack_object.close_session()
+    # End: session methods
+
+
     def set_attack_class(self, attack_class):
         # Sets attack class to use when attacking
-        self.attack_class = attack_class
+        if issubclass(attack_class, self.base_attack_class):
+            self.attack_class = attack_class
+        else:
+            err_msg = f"{attack_class} is not subclass of {self.base_attack_class}"
+            raise Exception(err_msg)
 
     def get_attack_class(self) -> Type[Attack]:
         # Returns attack class, raises error if not found
@@ -562,36 +579,59 @@ class BForce():
         
 class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
+    base_attack_class = AttackAsync 
+
     def __init__(self, target, ftable, loop_all=False):
         super().__init__(target, ftable, loop_all)
         self._current_tasks: Set[asyncio.Task]
 
-
-    async def close_session(self):
-        # Close session object shared by attack objects
-        if hasattr(self, "session"):
-            # Create fake attack object and set session
-            attack_object = self.create_attack_object(FRow())
-            attack_object.set_session(await self.get_session())
-            # close the session se on the object
-            await attack_object.close_session()
+    # start: Session methods
+    def session_exists(self):
+        # Returns True if session object exists
+        return hasattr(self, "session")
 
     def set_session(self, session):
         # Sets session object to be used by Attack objects
         self.session = session
+
+    async def create_session(self):
+        # Creates session object to be shared with attack objects
+        attack_class = self.get_attack_class()
+        try:
+            # Ask attack class to create session
+            session = await attack_class.create_session()
+        except NotImplementedError:
+            # Return None if attack class cant create session
+            return None
+        else:
+            # Return session created by attack class
+            return session
 
     async def get_session(self):
         # Gets session object to be shared with attack objects
         # Realise that thread_local wasnt used
         # Asyncio runs tasks in same thread so session is thread safe
         # We also have choice of when to switch task compared to threads
-        if not hasattr(self, "session"):
+        if not self.session_exists():
             try:
-                self.session = await self.create_session()
-            except:
+                session = await self.create_session()
+            except NotImplementedError:
                 return None
+            else:
+                self.set_session(session)
         # Not thread safe but safe with asyncio
         return self.session
+
+
+    async def close_session(self):
+        # Close session object shared by attack objects
+        if self.session_exists():
+            # Create fake attack object and set session
+            attack_object = self.create_attack_object(FRow())
+            attack_object.set_session(await self.get_session())
+            # close the session se on the object
+            await attack_object.close_session()
+    # End: session methods
 
     async def producer_coroutine(self):
         # Creates producer from producer() on different thread

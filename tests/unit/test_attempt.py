@@ -1,5 +1,9 @@
 import unittest
+from unittest import IsolatedAsyncioTestCase
+
 from perock.attempt import Attempt
+from perock.attempt import AttemptAsync
+
 from perock.target import Target
 from perock.target import Account
 
@@ -14,6 +18,23 @@ class SampleAttempt(Attempt):
         self.request_should_fail = False
     
     def request(self):
+        if not self.request_should_fail:
+            account = Account(self.data)
+            return self.target.login(account)
+        else:
+            return Exception()
+
+    def set_responce(self, responce):
+        self.responce = responce
+
+
+class SampleAttemptAsync(AttemptAsync):
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, retries)
+        self.target: Target
+        self.request_should_fail = False
+    
+    async def request(self):
         if not self.request_should_fail:
             account = Account(self.data)
             return self.target.login(account)
@@ -48,6 +69,15 @@ class TestAttemptSetUp():
         self.attempt = SampleAttempt(self.target, self.data)
         self.attempt2 = SampleAttempt(self.target, self.data2)
         self.attempt3 = SampleAttempt(self.target, self.data3)
+
+
+
+class TestAttemptSetUpAsync(TestAttemptSetUp):
+    def create_attempt_objects(self):
+        # Initialise attack objects
+        self.attempt = SampleAttemptAsync(self.target, self.data)
+        self.attempt2 = SampleAttemptAsync(self.target, self.data2)
+        self.attempt3 = SampleAttemptAsync(self.target, self.data3)
 
 
 class TestAttemptCommon(TestAttemptSetUp):
@@ -141,6 +171,83 @@ class TestAttemptCommon(TestAttemptSetUp):
         self.assertFalse(self.attempt.target_reached())
 
 
+class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
+    async def test_create_session(self):
+        with self.assertRaises(NotImplementedError):
+            await self.attempt.create_session()
+
+    async def test_close_session(self):
+        self.attempt.set_session(self.session)
+        await self.attempt.close_session()
+        self.assertTrue(self.session.closed)
+
+    async def test_close_responce(self):
+        self.attempt.set_responce(self.responce)
+        await self.attempt.close_responce()
+        self.assertTrue(self.responce.closed)
+
+    async def test_request_error(self):
+        self.assertFalse(self.attempt.request_error())
+        await self.attempt.start_request()
+        self.assertFalse(self.attempt.request_error())
+        self.attempt.request_should_fail = True
+        await self.attempt.start_request()
+        self.assertTrue(self.attempt.request_error())
+
+    async def test_get_responce(self):
+        # No responce as there was no request
+        self.assertEqual(self.attempt.get_responce(), None)
+        
+        # Starts request
+        await self.attempt.start_request()
+
+        # Gets responce messages fro responce objects
+        responce = await self.attempt.request()
+        responce_msg = responce.get_message()
+        responce2 = self.target.login(self.account)
+        responce2_msg = responce2.get_message()
+
+        # Test if the responce message are equal
+        self.assertEqual(responce_msg, responce2_msg)
+
+    async def test_request(self):
+        # Gets responce messages fro responce objects
+        responce = await self.attempt.request()
+        responce_msg = responce.get_message()
+        responce2 = self.target.login(self.account)
+        responce2_msg = responce2.get_message()
+
+        self.assertEqual(responce_msg, responce2_msg)
+        self.attempt.request_should_fail = True
+        responce = await self.attempt.request()
+        self.assertIsInstance(responce, Exception)
+
+    async def test_start_request(self):
+        await self.attempt.start_request()
+        self.assertFalse(self.attempt.request_error())
+        self.assertTrue(self.attempt.target_reached())
+
+        self.attempt.request_should_fail = True
+        await self.attempt.start_request()
+        self.assertTrue(self.attempt.request_error())
+        self.assertFalse(self.attempt.target_reached())
+
+
+
+
+
+    async def test_target_reached(self):
+        self.assertFalse(self.attempt.target_reached())
+        await self.attempt.start_request()
+        self.assertTrue(self.attempt.target_reached())
+        self.attempt.request_should_fail = True
+        await self.attempt.start_request()
+        self.assertFalse(self.attempt.target_reached())
+
+
 class TestAttempt(TestAttemptCommon, unittest.TestCase):
+    pass
+
+class TestAttemptAsync(TestAttemptAsyncCommon, IsolatedAsyncioTestCase):
     pass
 

@@ -1,11 +1,14 @@
 import unittest
 
 from .test_attempt import TestAttemptCommon
+from .test_attempt import TestAttemptAsyncCommon
+
 from .test_check import TestCheckCommon
+from .test_check import TestCheckAsyncCommon
 
 from perock.target import Target
 from perock.target import Account
-from perock.attack import Attack
+from perock.attack import Attack, AttackAsync
 
 
 class SampleAttack(Attack):
@@ -25,9 +28,22 @@ class SampleAttack(Attack):
         self.responce = responce
 
 
-class TestAttackMixin():
-    def __init(*args, **kwargs):
-        pass
+class SampleAttackAsync(AttackAsync):
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, retries)
+        self.target: Target
+        self.request_should_fail = False
+    
+    async def request(self):
+        if not self.request_should_fail:
+            account = Account(self.data)
+            return self.target.login(account)
+        else:
+            return Exception()
+
+    def set_responce(self, responce):
+        self.responce = responce
+
 
 
 class TestAttackCommon(TestAttemptCommon, TestCheckCommon):
@@ -73,7 +89,16 @@ class TestAttackCommon(TestAttemptCommon, TestCheckCommon):
         self.assertEqual(self.attack.get_attempt_object(), self.attack)
 
 
-class TestAttempt(TestAttackCommon, unittest.TestCase):
+class TestAttackAsyncCommon(TestAttemptAsyncCommon, TestCheckAsyncCommon):
+    pass
+
+
+
+
+class TestAttack(TestAttackCommon, unittest.TestCase):
+    pass
+
+class TestAttackAsync(TestAttackAsyncCommon, unittest.IsolatedAsyncioTestCase):
     pass
 
 
