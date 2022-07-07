@@ -42,6 +42,35 @@ def iscallable(referance):
         return False
 
 
+def copy_class(class_):
+    # Returns copy of class
+    class class_copy(class_):
+        pass
+    return class_copy
+
+
+def cast_to_class(
+        source_class, 
+        dest_class,
+        excluded=["__class__"],
+        magic=False):
+    # Casts source_class into dest_class
+    # Copy dest_class to avoid mofying original class
+    dest_class_copy = copy_class(dest_class)
+    for attr in dir(dest_class_copy):
+        # Ignore magic methods if magic argument is True
+        if attr.startswith("__") and attr.endswith("__"):
+            if not magic:
+                continue
+        # Get corresponding attribute value from source_class
+        attr_val = getattr(source_class, attr)
+        # Overide attribute with value from this class
+        setattr(dest_class_copy, attr, attr_val)
+        
+    # Returns the class after modifications
+    return dest_class_copy
+
+
 if __name__ == "__main__":
     print(list(split_iterator([1,2,4,6,8,10], 4)))
     pass
