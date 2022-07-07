@@ -153,9 +153,7 @@ class AttemptAsync(Attempt):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
 
-
-    @classmethod
-    async def close_session(cls, session):
+    async def close_session(self):
         '''Closes session object'''
         await try_close_async(session)
 
@@ -184,10 +182,10 @@ class AttemptAsync(Attempt):
         if self.responce:
             await self.close_responce()
 
-    async def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    async def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
     

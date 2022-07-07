@@ -562,29 +562,32 @@ class BForce():
         
 class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
-    def __init__(self, target, ftable):
-        super().__init__(target, ftable)
+    def __init__(self, target, ftable, loop_all=False):
+        super().__init__(target, ftable, loop_all)
         self._current_tasks: Set[asyncio.Task]
 
 
     async def close_session(self):
         # Close session object shared by attack objects
         if hasattr(self, "session"):
-            attack_class = self.get_attack_class()
-            await attack_class.close_session(self.session)
+            # Create fake attack object and set session
+            attack_object = self.create_attack_object(FRow())
+            attack_object.set_session(await self.get_session())
+            # close the session se on the object
+            await attack_object.close_session()
 
     def set_session(self, session):
         # Sets session object to be used by Attack objects
         self.session = session
 
-    def get_session(self):
+    async def get_session(self):
         # Gets session object to be shared with attack objects
         # Realise that thread_local wasnt used
         # Asyncio runs tasks in same thread so session is thread safe
         # We also have choice of when to switch task compared to threads
         if not hasattr(self, "session"):
             try:
-                self.session = self.create_session()
+                self.session = await self.create_session()
             except:
                 return None
         # Not thread safe but safe with asyncio
@@ -601,7 +604,7 @@ class BForceAsync(BForce):
     async def handle_attack(self, frow):
         #print("run async def handle_attack()")
         # Handles attack on attack class with asyncio support
-        session = self.get_session()
+        session = await self.get_session()
         async with self.create_attack_object(frow) as attack_object:
             #print("after self.create_attack_object()")
             if session != None:
@@ -689,8 +692,8 @@ class BForceAsync(BForce):
 
 
 class BForceBlock(BForce):
-    def __init__(self, target, ftable: FTable) -> None:
-        super().__init__(target, ftable)
+    def __init__(self, target, ftable: FTable, loop_all=False) -> None:
+        super().__init__(target, ftable, loop_all)
 
     def producer_should_switch(self, frow):
         if len(self._columns) == 1:
@@ -732,6 +735,8 @@ class BForceBlock(BForce):
 
     def handle_attack(self, frow):
         attack_object = self.create_attack_object(frow)
+        # Start a request with target
+        attack_object.start_request()
         self.handle_attack_results(attack_object, frow)
 
     def consumer(self):
