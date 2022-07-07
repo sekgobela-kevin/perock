@@ -25,7 +25,7 @@ class _WebAttackMixin():
     def after_request(self):
         # Method is excuted after request completes
         if self.responce_errors():
-            self.responce_error_msg = self.responce.reason
+            self.responce_msg = self.responce.reason
 
     def responce_status_code(self, responce):
         # Access status code from responce

@@ -37,6 +37,10 @@ class Attempt():
         self.target = target
         self.data = data
 
+        # session to share with other attack object
+        self.session = None
+        # Error message from responce
+        self.responce_msg = None
         # represents our responce
         self.responce = None
 
@@ -54,10 +58,9 @@ class Attempt():
         raise NotImplementedError
        
 
-    @classmethod
-    def close_session(cls, session):
+    def close_session(self):
         '''Closes session object'''
-        try_close(session)
+        try_close(self.session)
 
     def close_responce(self):
         "Closes responce object"
@@ -131,6 +134,18 @@ class Attempt():
             return False
         return not self.request_error()
 
+    def close(self):
+        #self.close_session()
+        if self.responce:
+            self.close_responce()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
 
 
 class AttemptAsync(Attempt):
@@ -163,6 +178,19 @@ class AttemptAsync(Attempt):
         except Exception as e:
             self.responce = e
         self.after_start_request()
+
+    async def close(self):
+        #self.close_session()
+        if self.responce:
+            await self.close_responce()
+
+    async def __enter__(self):
+        return self
+
+    async def __exit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
+    
 
 
 if __name__ == "__main__":
