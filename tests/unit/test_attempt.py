@@ -61,7 +61,8 @@ class TestAttemptCommon(TestAttemptSetUp):
             self.attempt.create_session()
 
     def test_close_session(self):
-        self.attempt.close_session(self.session)
+        self.attempt.set_session(self.session)
+        self.attempt.close_session()
         self.assertTrue(self.session.closed)
 
     def test_close_responce(self):

@@ -19,8 +19,8 @@ from .test_attack import SampleAttack
 from perock.attack import Attack
 from perock.attack import AttackAsync
 
-from perock.bruteforce import BForce
-from perock.bruteforce import BForceAsync
+from perock.bforce import BForce
+from perock.bforce import BForceAsync
 
 
 class SampleAttack(SampleAttack):
