@@ -55,7 +55,7 @@ class BruteForceBase():
     base_attack_class: Type[attack.Attack]
     base_bforce_class = Type[bforce.BForce]
 
-    def __init__(self, target, table, optimise):
+    def __init__(self, target, table, optimise=True):
         '''
         target: 
             System or target to attack e.g webpage(url)
@@ -74,15 +74,14 @@ class BruteForceBase():
         username already matched one of passwords. Its better to set
         'optimise' as True for username-password attack.
         '''
-        # Calls __init__() of the base classes
-        #self.__attack__init__(None, None)
-        self.__bforce__init__(target, table, not optimise)
-
+        super().__init__("test target", forcetable.FTable())
         self.target = target
         self.table: forcetable.FTable = table
+        self.optimise = optimise
 
-        # Set attack_class needed by BForce instances
-        self.set_attack_class(self._create_attack_class())
+        self.bforce = self._create_bforce_object(
+            self.target, self.table, not self.optimise
+        )
 
     def __attack__init__(self, *args, **kwargs):
         # Method called on __init__() of created attack objects
@@ -97,7 +96,7 @@ class BruteForceBase():
         # Creates Attack class from current class
         class AttackClass(cls):
             def __init__(self, *args, **kwargs) -> None:
-                self.__attack__init__(*args, **kwargs)
+                self.__attack__init__(self, *args, **kwargs)
         return AttackClass
 
     @classmethod
@@ -106,11 +105,16 @@ class BruteForceBase():
         # This method is not used.
         class BforceClass(cls):
             def __init__(self, *args, **kwargs) -> None:
-                self.base_bforce_class.__init__(self, *args, **kwargs)
+                self.__bforce__init__(self, *args, **kwargs)
         return BforceClass
 
+    @classmethod
+    def _create_bforce_object(cls, *args, **kwargs) -> bforce.BForce:
+        bforce = cls.base_bforce_class(*args, **kwargs)
+        bforce.set_attack_class(cls._create_attack_class())
+        return bforce
 
-class BruteForce(BruteForceBase, bforce.BForce, attack.Attack):
+class BruteForce(BruteForceBase, attack.Attack):
     # Corresponding classes to be used by this class
     base_attack_class = attack.Attack
     base_bforce_class = bforce.BForce
@@ -118,10 +122,11 @@ class BruteForce(BruteForceBase, bforce.BForce, attack.Attack):
     def __init__(self, target, table, optimise=True) -> None:
         super().__init__(target, table, optimise)
 
-class BruteForceAsync(
-        BruteForceBase, 
-        bforce.BForceAsync,
-        attack.AttackAsync):
+    def start(self):
+        self.bforce.start()
+
+
+class BruteForceAsync(BruteForceBase, attack.AttackAsync):
     # Corresponding classes to be used by this class
     base_attack_class = attack.AttackAsync
     base_bforce_class = bforce.BForceAsync
@@ -129,10 +134,10 @@ class BruteForceAsync(
     def __init__(self, target, table, optimise=True) -> None:
         super().__init__(target, table, optimise)
 
-class BruteForceBlock(
-        BruteForceBase, 
-        bforce.BForceBlock,
-        attack.Attack):
+    async def start(self):
+        await self.bforce.start()
+
+class BruteForceBlock(BruteForceBase, attack.Attack):
     # Corresponding classes to be used by this class
     base_attack_class = attack.Attack
     base_bforce_class = bforce.BForce
@@ -141,7 +146,7 @@ class BruteForceBlock(
         super().__init__(target, table, optimise)
 
 from . import target
-class TestBruteForce(BruteForceAsync):
+class TestBruteForce(BruteForce):
     def __init__(self, target, table, optimise=True) -> None:
         super().__init__(target, table, optimise)
 
@@ -151,9 +156,9 @@ class TestBruteForce(BruteForceAsync):
         self.name = "name"
 
     def success(self):
-        return False
+        return True
 
-    async def request(self):
+    def request(self):
         #print("request", self.data)
         return target.Target().login({})
 
@@ -164,7 +169,7 @@ if __name__ == "__main__":
     #attack_class = BruteForce(attack.Attack, forcetable.FTable())
     #print(attack_class.start())
     usernames = ["Marry", "Bella", "Michael"]
-    passwords = range(100)
+    passwords = range(10000000)
 
     # Creates columns for table
     usernames_col = forcetable.FColumn('usernames', usernames)
@@ -182,11 +187,7 @@ if __name__ == "__main__":
     table.add_primary_column(usernames_col)
     table.add_column(passwords_col)
 
-    bforce = TestBruteForce("", table, True)
+    bforce = TestBruteForce("", table, False)
 
 
-    
-    bforce.set_max_workers(10)
-
-    asyncio.run(bforce.start())
-    print()
+    bforce.start()
