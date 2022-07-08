@@ -15,13 +15,28 @@ Date: June 2022
 Languages: Python 3
 '''
 
+# This module is getting complex as it grows it grows.
+# It becomes pain to maintain this module as its classes are large.
+# Its a pain to maintain module with lines closer to 1000
+# It needs to be split into smaller modules or its classes split.
+
+# Each class in the modue contain methods that could be split to other classes.
+# Methods involving session and producer can be made their own classes.
+# Theres also a need for base class for BForce classes.
+# Its also a pain to maintain async version of BForce class.
+
+# This module has grown beyond what was planned.
+# It was supposed to contain one class but now has 3 classes.
+# Each class implements methods their own way which adds even more lines.
+
+
 from typing import Callable, Dict, List, Set, Type
 import logging
 import queue
 import threading
 import time
 import asyncio
-from concurrent.futures import InvalidStateError, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from concurrent.futures import Executor
 #from concurrent.futures import as_completed
@@ -36,6 +51,11 @@ from .forcetable import FRow
 from .forcetable import FTable
 
 from . import forcetable
+
+# Not used
+#from .session import BForceSession
+#from .session import BForceBlockSession
+#from .session import BForceAsyncSession
 
 
 # asyncio.to_thread() is New in Python version 3.9.
