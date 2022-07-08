@@ -1,0 +1,122 @@
+'''
+Author: Sekgobela Kevin
+Date: July 2022
+Languages: Python 3
+'''
+from . import attack
+from . import bforce
+from . import forcetable
+
+
+class Runner():
+    def __init__(self, 
+    attack_class=attack.Attack, 
+    bforce_class=bforce.BForce) -> None:
+        self._attack_class = attack_class
+        self._bforce_class = bforce_class
+
+        self._target = None
+        self._table = None
+        self._optimise = True
+
+    def set_target(self, target):
+        self._target = target
+    
+    def set_table(self, table):
+        if not isinstance(table, forcetable.FTable):
+            err_msg = "table needs to instance of FTable class not" +\
+            " " + str(type(table))
+            raise TypeError(err_msg)
+        self._table = table
+
+    def set_optimise(self):
+        self._optimise = True
+
+    def unset_optimise(self):
+        self._optimise = False
+
+    def _create_bforce_object(self):
+        if self._target == None:
+            err_msg = "Target is missing or None"
+            raise Exception(err_msg)
+        if self._table == None:
+            err_msg = "Table is missing or None"
+            raise Exception(err_msg)
+        bforce = self._bforce_class(
+            self._target, self._table, not self._optimise
+        )
+        bforce.set_attack_class(self._attack_class)
+        return bforce
+
+    def start(self):
+        bforce_object = self._create_bforce_object()
+        bforce_object.bforce.start()
+
+    def run(self):
+        self.start()
+
+
+class RunnerAsync(Runner):
+    def __init__(self, 
+    attack_class=attack.AttackAsync, 
+    bforce_class=bforce.BForceAsync) -> None:
+        super().__init__(attack_class, bforce_class)
+
+    async def start(self):
+        bforce_object = self._create_bforce_object()
+        await bforce_object.start()
+
+    async def run(self):
+        await self.start()
+
+
+
+if __name__ == "__main__":
+    import asyncio
+    from .attacks import *
+
+    usernames = ["Marry", "Bella", "Michael"]
+    passwords = range(10000000)
+
+    # Creates columns for table
+    usernames_col = forcetable.FColumn('usernames', usernames)
+    # Sets key name to use in row key in Table
+    usernames_col.set_item_name("username")
+    passwords_col = forcetable.FColumn('passwords', passwords)
+    passwords_col.set_item_name("password")
+
+    table = forcetable.FTable()
+    # Set common row to be shared by all rows
+    common_row = forcetable.FRow()
+    common_row.add_item("submit", "login")
+    table.set_common_row(common_row)
+    # Add columns to table
+    table.add_primary_column(usernames_col)
+    table.add_column(passwords_col)
+
+    class AttackClass(TestAttackAsync):
+        def __init__(self, target, data: dict, retries=1) -> None:
+            super().__init__(target, data, retries)
+            self.set_sleep_time(1)
+
+        async def request(self):
+            self.ss
+
+
+        @staticmethod
+        async def create_session():
+            import random 
+            return "Session in string" + str(random.randint(0, 3000))
+
+
+        def success(self):
+            print(self.session)
+            return True
+
+
+
+    runner = RunnerAsync(WebAttackAsync)
+    runner.set_target('https://example.com')
+    runner.set_table(table)
+    runner.set_optimise()
+    asyncio.run(runner.run())
