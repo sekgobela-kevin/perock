@@ -4,6 +4,9 @@ Date: June 2022
 Languages: Python 3
 '''
 
+from typing import List, Set
+
+
 def try_close(object):
     # Attempts to close provided object
     try:
@@ -29,7 +32,8 @@ class Attempt():
     anything that requires certain credentials to access.
     This can include website or file requiring username and
     password to access.'''
-    '''Checks if provided data is valid for system'''
+    unraised_exceptions_classes: Set[BaseException] = []
+
     def __init__(self, target, data:dict, retries=1) -> None:
         '''
         target - system to send data to e.g url
@@ -43,6 +47,28 @@ class Attempt():
         self.responce_msg = None
         # represents our responce
         self.responce = None
+
+    @classmethod
+    def _add_unraised_exception(cls, exception):
+        # Adds exception not to be raised on .request(self)
+        cls.unraised_exceptions_classes.add(exception)
+
+    def _remove_unraised_exception(cls, exception):
+        # Removes exception not to be raised on .request(self)
+        cls.unraised_exceptions_classes.remove(exception)
+
+    @classmethod
+    def _should_raise_exception(cls, exception):
+        # Returns True if exception should be raised on .request(self)
+        if isinstance(exception, BaseException):
+            for unraised_exception in cls.unraised_exceptions_classes:
+                if isinstance(exception, unraised_exception):
+                    return False
+            return True
+        else:
+            err_msg = "exception needs to be BaseException not" +\
+            " " + str(type(exception))
+            raise TypeError(err_msg)
 
     def validate_data(self, data):
         '''Checks if data is in valid for request'''
@@ -122,7 +148,10 @@ class Attempt():
         try:
             self.responce =  self.request()
         except Exception as e:
-            self.responce = e
+            if self._should_raise_exception(e):
+                raise e
+            else:
+                self.responce = e
         self.after_start_request()
         
 
@@ -180,7 +209,11 @@ class AttemptAsync(Attempt):
         try:
             self.responce =  await self.request()
         except Exception as e:
-            self.responce = e
+            if self._should_raise_exception(e):
+                raise e
+            else:
+                print(self._should_raise_exception(e), self.unraised_exceptions_classes)
+                self.responce = e
         self.after_start_request()
 
     async def close(self):

@@ -83,36 +83,43 @@ class BruteForceBase():
             self.target, self.table, not self.optimise
         )
 
-    def __attack__init__(self, *args, **kwargs):
-        # Method called on __init__() of created attack objects
-        self.base_attack_class.__init__(self, *args, **kwargs)
+    def __attack__init__(self, target, data):
+        '''
+        Method called on __init__() of created attack objects
+        
+        Use this method to setup variables to be used on with attack
+        object. This method may be called on different thread or proccess
+        so care should be taken when using it.
+        
+        Its safe to use attaributes of attack object as it will executed
+        with attack object.'''
+        self.base_attack_class.__init__(self, target, data)
 
     def __bforce__init__(self, *args, **kwargs):
-        # Method called on __init__() of this object
+        '''Method called on __init__() of this object'''
         self.base_bforce_class.__init__(self, *args, **kwargs)
-    
-    @classmethod
-    def _create_attack_class(cls) -> Type[attack.Attack]:
-        # Creates Attack class from current class
-        class AttackClass(cls):
-            def __init__(self, *args, **kwargs) -> None:
-                self.__attack__init__(self, *args, **kwargs)
-        return AttackClass
-
-    @classmethod
-    def _create_bforce_class(cls) -> Type[bforce.BForce]:
-        # Creates BForce class from current class
-        # This method is not used.
-        class BforceClass(cls):
-            def __init__(self, *args, **kwargs) -> None:
-                self.__bforce__init__(self, *args, **kwargs)
-        return BforceClass
 
     @classmethod
     def _create_bforce_object(cls, *args, **kwargs) -> bforce.BForce:
         bforce = cls.base_bforce_class(*args, **kwargs)
-        bforce.set_attack_class(cls._create_attack_class())
+        attack_class = cls._create_attack_class()
+        bforce.set_attack_class(attack_class)
         return bforce
+
+    
+    def set_max_parallel_tasks(self, total_tasks: int):
+        '''Sets maximum number of tasks to run in parallel'''
+        self.bforce.set_total_tasks(total_tasks)
+
+    def set_max_workers(self, max_workers: int):
+        '''Sets maximum workers to use to execute tasks in parallel'''
+        self.set_max_workers(max_workers)
+
+    def set_executor(self, executor):
+        '''Sets executor to use to execute tasks'''
+        self.bforce.set_executor(executor)
+
+    
 
 class BruteForce(BruteForceBase, attack.Attack):
     # Corresponding classes to be used by this class
@@ -145,26 +152,26 @@ class BruteForceBlock(BruteForceBase, attack.Attack):
     def __init__(self, target, table, optimise=True) -> None:
         super().__init__(target, table, optimise)
 
-from . import target
-class TestBruteForce(BruteForce):
-    def __init__(self, target, table, optimise=True) -> None:
-        super().__init__(target, table, optimise)
-
-    def __attack__init__(self, *args, **kwargs):
-        super().__attack__init__(*args, **kwargs)
-        self.responce: target.Responce
-        self.name = "name"
-
-    def success(self):
-        return True
-
-    def request(self):
-        #print("request", self.data)
-        return target.Target().login({})
-
-
 if __name__ == "__main__":
-    import asyncio
+    from . import target
+    class TestBruteForce(BruteForceAsync):
+        def __init__(self, target, table, optimise=True) -> None:
+            super().__init__(target, table, optimise)
+
+        def __attack__init__(self, *args, **kwargs):
+            super().__attack__init__(*args, **kwargs)
+            self.responce: target.Responce
+            self.name = "name"
+
+        def success(self):
+            return True
+
+        async def request(self):
+            #print("request", self.data)
+            return target.Target().login({})
+
+
+        import asyncio
 
     #attack_class = BruteForce(attack.Attack, forcetable.FTable())
     #print(attack_class.start())

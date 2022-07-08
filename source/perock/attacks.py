@@ -114,7 +114,7 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
         return responce.status
 
     @classmethod
-    def create_session(cls):
+    async def create_session(cls):
         # Creates session object to use with request
         aiohttp = importlib.import_module("aiohttp")
         return aiohttp.ClientSession()
