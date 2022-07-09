@@ -12,7 +12,7 @@ from perock.target import Account
 from .common_classes import Session
 from .common_classes import Responce
 
-from .test_forcetable import TestFTableSetUp
+from .test_forcetable import TestTableSetUp
 from .test_attempt import TestAttemptSetUp
 from .test_attempt import TestAttemptSetUpAsync
 from .test_attack import SampleAttack
@@ -41,7 +41,7 @@ class SampleAttackAsync(SampleAttackAsync):
         return Session()
 
 
-class TestBForceSetUP(TestFTableSetUp, TestAttemptSetUp):
+class TestBForceSetUP(TestTableSetUp, TestAttemptSetUp):
     bforce_class = BForce
     attack_class = SampleAttack
 
@@ -57,10 +57,10 @@ class TestBForceSetUP(TestFTableSetUp, TestAttemptSetUp):
         self.create_bforce_objects()
 
     def create_bforce_objects(self):
-        self.bforce = self.bforce_class(self.target, self.ftable)
+        self.bforce = self.bforce_class(self.target, self.table)
         self.bforce.set_attack_class(self.attack_class)
         # Has no attack class
-        self.bforce_raw = self.bforce_class(self.target, self.ftable)
+        self.bforce_raw = self.bforce_class(self.target, self.table)
 
 
 class TestBForceCommon(TestBForceSetUP):
@@ -129,11 +129,11 @@ class TestBForceCommon(TestBForceSetUP):
             # bforce_raw does not hae attack class
             self.bforce_raw.create_attack_object(self.data)
 
-    def test_should_put_row(self):
+    def test_should_put_record(self):
         # This method harder to test
         # Its output depends on state of it object which can change
         # Buts its expected to return True for now
-        self.assertTrue(self.bforce.should_put_row(self.dict_frows[0]))
+        self.assertTrue(self.bforce.should_put_record(self.dict_records[0]))
 
 
     def test_add_producer_method(self):

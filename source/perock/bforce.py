@@ -15,7 +15,7 @@ Date: June 2022
 Languages: Python 3
 '''
 
-# This module is getting complex as it grows it grows.
+# This module is getting complex as it grecords it grecords.
 # It becomes pain to maintain this module as its classes are large.
 # Its a pain to maintain module with lines closer to 1000
 # It needs to be split into smaller modules or its classes split.
@@ -25,7 +25,7 @@ Languages: Python 3
 # Theres also a need for base class for BForce classes.
 # Its also a pain to maintain async version of BForce class.
 
-# This module has grown beyond what was planned.
+# This module has grecordn beyond what was planned.
 # It was supposed to contain one class but now has 3 classes.
 # Each class implements methods their own way which adds even more lines.
 
@@ -46,9 +46,9 @@ from concurrent.futures import Executor
 from .attack import Attack
 from .attack import AttackAsync
 
-from .forcetable import FColumn
-from .forcetable import FRow
-from .forcetable import FTable
+from .forcetable import Field
+from .forcetable import Record
+from .forcetable import Table
 
 from . import forcetable
 
@@ -68,15 +68,15 @@ logging.basicConfig(format=format, level=logging.INFO,
                     datefmt="%H:%M:%S")
 
 class BForce():
-    '''Performs attack on target with data from FTable object(threaded)'''
+    '''Performs attack on target with data from Table object(threaded)'''
     base_attack_class = Attack
 
-    def __init__(self, target, ftable:FTable, loop_all=False) -> None:
+    def __init__(self, target, table:Table, loop_all=False) -> None:
         self.target = target
-        self._ftable = ftable
+        self._table = table
         self.loop_all = loop_all
-        self._primary_column = ftable.get_primary_column()
-        self._columns = ftable.get_columns()
+        self._primary_field = table.get_primary_field()
+        self._fields = table.get_fields()
 
         # Total independed tasks to run
         # Corresponds to requests that will be executed concurrently
@@ -97,9 +97,9 @@ class BForce():
         self.producer_should_run = True
         self.consumer_should_run = True
 
-        # Primary items of cracked rows
+        # Primary items of cracked records
         self._success_primary_items = set()
-        self._success_rows = []
+        self._success_records = []
 
         # Stores producer methods and their names
         self._producers_map: Dict[str, Callable]
@@ -127,8 +127,8 @@ class BForce():
         # Returns pool executor e.g TheadPoolExecutor
         return self.executor
 
-    def get_success_frows(self):
-        return self._success_rows
+    def get_success_records(self):
+        return self._success_records
 
     def set_max_workers(self, max_workers):
         # Sets max workers for executor
@@ -191,7 +191,7 @@ class BForce():
     def close_session(self):
         if hasattr(self._thread_local, "session"):
             # Create fake attack object and set session
-            attack_object = self.create_attack_object(FRow())
+            attack_object = self.create_attack_object(Record())
             attack_object.set_session(self.get_session())
             # close the session se on the object
             attack_object.close_session()
@@ -226,16 +226,16 @@ class BForce():
         attack_class = self.get_attack_class()
         return attack_class(self.target, data)
 
-    def should_put_row(self, frow):
-        # Returns True if row should be put to queue
-        # logic to decide if row should be put to queque
-        if self._ftable.primary_column_exists():
-            return not forcetable.row_primary_included(
-                frow, 
-                self._primary_column, 
+    def should_put_record(self, record):
+        # Returns True if record should be put to queue
+        # logic to decide if record should be put to queque
+        if self._table.primary_field_exists():
+            return not forcetable.record_primary_included(
+                record, 
+                self._primary_field, 
                 self._success_primary_items
             )
-        # Put all rows to queue if primary column not detected
+        # Put all records to queue if primary field not detected
         return True
 
 
@@ -285,54 +285,54 @@ class BForce():
             except queue.Empty:
                 break
 
-    def producer_should_switch(self, frow):
-        if len(self._columns) == 1:
-            if self._success_rows:
+    def producer_should_switch(self, record):
+        if len(self._fields) == 1:
+            if self._success_records:
                 return True
         else:
-            return not self.should_put_row(frow)
+            return not self.should_put_record(record)
 
 
     def _producer_loop_all(self):
         '''
-        Producer that loops through all frows but checks before
-        putting frow to tasks queue. 
+        Producer that loops through all records but checks before
+        putting record to tasks queue. 
 
-        This is great if primary column is not provided or need more 
-        control on wheather frow be added to tasks queue. This method
-        will loop through all FRows objects in FTable object.
+        This is great if primary field is not provided or need more 
+        control on wheather record be added to tasks queue. This method
+        will loop through all Records objects in Table object.
 
-        It is fast but not faster as it loops through all FRows which
-        could be millions in size depending on total columns and their 
-        sizes. But it guarantees that each frow will be checked unlike
-        `_producer_loop_some(self)` which will skip frows.
+        It is fast but not faster as it loops through all Records which
+        could be millions in size depending on total fields and their 
+        sizes. But it guarantees that each record will be checked unlike
+        `_producer_loop_some(self)` which will skip records.
 
-        Condition can be checking if frow is already cracked successfully 
+        Condition can be checking if record is already cracked successfully 
         or already attempted. Conditions are defined by 
-        `self.should_put_row(frow)` which should return True if frow be
+        `self.should_put_record(record)` which should return True if record be
         put to tasks.
         '''
-        for frow in self._ftable:
+        for record in self._table:
             if not self.producer_should_continue():
-                self.clear_queue(self.frows_queue)
+                self.clear_queue(self.records_queue)
                 break
-            elif self.should_put_row(frow):
-                self.frows_queue.put(frow)
+            elif self.should_put_record(record):
+                self.records_queue.put(record)
 
     def _producer_loop_some(self):
         '''
-        Producer that loops through some frows but would stop if
+        Producer that loops through some records but would stop if
         conditions are met. 
 
-        This method requires that FTable object contain primary column
+        This method requires that Table object contain primary field
         if not please use `._producer_loop_all()` method. Any item in
-        primary column will only be tried until conditions are met. If 
+        primary field will only be tried until conditions are met. If 
         conditions are met it terminate and begin with another item of 
-        primary column.
+        primary field.
 
         This method is similar to `self._producer_loop_all()` but its just
         that it quits if conditions are right and it will never perform
-        check on same frows with that primary column. Think of it as 
+        check on same records with that primary field. Think of it as 
         optimised version of `self._producer_loop_all()` which does not
         loop on everything.
 
@@ -340,43 +340,43 @@ class BForce():
         username is valid with only single password. If thats not neccessary
         then its better to use `self._producer_loop_all()`.
 
-        Condition can be checking if frow is already cracked successfully 
+        Condition can be checking if record is already cracked successfully 
         or already attempted. Conditions are defined by 
-        `self.should_put_row(frow)` which should return True if frow be
+        `self.should_put_record(record)` which should return True if record be
         put to tasks.
         '''
-        if self._ftable.primary_column_exists():
-            for frows in self._ftable.rows_primary_grouped():
-                for frow in frows:
+        if self._table.primary_field_exists():
+            for records in self._table.records_primary_grouped():
+                for record in records:
                     if not self.producer_should_continue():
-                        self.clear_queue(self.frows_queue)
+                        self.clear_queue(self.records_queue)
                         return
-                    elif not self.producer_should_switch(frow):
-                        self.frows_queue.put(frow)
+                    elif not self.producer_should_switch(record):
+                        self.records_queue.put(record)
                     else:
-                        self.clear_queue(self.frows_queue)
+                        self.clear_queue(self.records_queue)
                         break
                         
         else:
-            err_msg = f"Current producer requires primary column"
+            err_msg = f"Current producer requires primary field"
             raise Exception(err_msg)
 
     def producer(self):
         '''
-        Producer method that put frows to tasks queue from 
+        Producer method that put records to tasks queue from 
         Ftable object
 
         This ethod may call other producer methods that perform task
-        of putting FRow objects to queue. Wheather FRow object will be put
+        of putting Record objects to queue. Wheather Record object will be put
         to tasks queue would depend on producer method called.
 
         Some of methods that may be called may include `_producer_loop_all(self)`
-        and `_producer_loop_some(self)`. `should_put_row(frow)` is may be 
-        called by producer methods to decide if FRow object should be put
+        and `_producer_loop_some(self)`. `should_put_record(record)` is may be 
+        called by producer methods to decide if Record object should be put
         to tasks queue.
 
-        Note that some FRow objects can be skipped, `_producer_loop_some(self)`
-        also skips FRow objects without even checking or creating them. Each
+        Note that some Record objects can be skipped, `_producer_loop_some(self)`
+        also skips Record objects without even checking or creating them. Each
         producer method behave differently and have their pros and cons.
         '''
         # Error like missing primary key expected
@@ -392,75 +392,75 @@ class BForce():
 
 
 
-    def frows_queue_elements(self, size=None, timeout=0.2) -> List[FRow]:
-        # Accesses size items from frows_queue
+    def records_queue_elements(self, size=None, timeout=0.2) -> List[Record]:
+        # Accesses size items from records_queue
         # If size is None, accesses from current qsize()
         if size == None:
-            size = self.frows_queue.qsize()
-        ftable = []
+            size = self.records_queue.qsize()
+        table = []
         count = 0
         while count < size:
             try:
-                # Get frow if available in timeout
-                frow = self.frows_queue.get(timeout=timeout)
+                # Get record if available in timeout
+                record = self.records_queue.get(timeout=timeout)
             except queue.Empty:
-                # Break the loop if failed to get frow
+                # Break the loop if failed to get record
                 # That may mean producer finished running
                 break
             else:
-                ftable.append(frow)  
+                table.append(record)  
             count += 1
-        # If ftable is empty, frows_queue may be empty
+        # If table is empty, records_queue may be empty
         # Producer may have stopped or timeout is too small
-        return ftable
+        return table
 
 
 
-    def attack_success_callback(self, attack_object, frow):
+    def attack_success_callback(self, attack_object, record):
         # Callback called when theres success
-        # Primary item of row is added to success primary values
-        logging.info("Target/system was unlocked: " + str(frow))
-        if self._ftable.primary_column_exists():
-            primary_column = self._ftable.get_primary_column()
-            primary_item = forcetable.get_row_primary_item(frow, primary_column)
+        # Primary item of record is added to success primary values
+        logging.info("Target/system was unlocked: " + str(record))
+        if self._table.primary_field_exists():
+            primary_field = self._table.get_primary_field()
+            primary_item = forcetable.get_record_primary_item(record, primary_field)
             # Use of lock can be removed on async version
             with self._lock:
                 self._success_primary_items.add(primary_item)
         with self._lock:
-            self._success_rows.append(frow)
+            self._success_records.append(record)
 
 
-    def attack_failure_callback(self, attack_object, frow):
+    def attack_failure_callback(self, attack_object, record):
         # Callback called when theres failure without error after attack attempt
         pass
 
-    def attack_error_callback(self, attack_object:Attack, frow):
+    def attack_error_callback(self, attack_object:Attack, record):
         # Callback called when theres error after attack attempt'''
         logging.info(str(attack_object.get_responce()))
 
 
-    def handle_attack_results(self, attack_object:Type[Attack], frow):
+    def handle_attack_results(self, attack_object:Type[Attack], record):
         # Handles results of attack on attack object
         # start_request() was already called and finished
         # responce can be accessed with self.responce
         if attack_object.errors():
-            self.attack_error_callback(attack_object, frow)
+            self.attack_error_callback(attack_object, record)
         elif attack_object.failure():
-            self.attack_failure_callback(attack_object, frow)
+            self.attack_failure_callback(attack_object, record)
         elif attack_object.success():
-            self.attack_success_callback(attack_object, frow)
+            self.attack_success_callback(attack_object, record)
         else:
             err_msg = "Not sure if attack failed or was success"
-            raise Exception(err_msg, frow)              
+            raise Exception(err_msg, record)              
             
 
 
-    def handle_attack(self, frow):
+    def handle_attack(self, record):
         # Handles attack on thread
         # Use it only on threads as .start_request() would block
         # This method can be passed to thread pool executor
         session = self.get_session() # get session for this thread
-        with self.create_attack_object(frow) as attack_object:
+        with self.create_attack_object(record) as attack_object:
             if session != None:
                 # offer attack object session before request
                 # attack object should use the session during request
@@ -468,14 +468,14 @@ class BForce():
             # start the request(can take some time)
             attack_object.start_request()
             # handles results of the request
-            self.handle_attack_results(attack_object, frow)
+            self.handle_attack_results(attack_object, record)
 
-    def handle_attacks(self, executor, ftable):
-        # Performs attack on provided ftable using threads
+    def handle_attacks(self, executor, table):
+        # Performs attack on provided table using threads
         # Useful if attack class not using asyncio
         futures: List[asyncio.Future] = []
-        for frow in ftable:
-            future = executor.submit(self.handle_attack, frow)
+        for record in table:
+            future = executor.submit(self.handle_attack, record)
             futures.append(future)
         #concurrent.futures.wait(futures, timeout=self.tasks_wait)
         return futures
@@ -528,7 +528,7 @@ class BForce():
         # Checks if consumer should continue running
         if not self.consumer_should_run:
             return False
-        elif self.frows_queue.empty() and self.producer_completed:
+        elif self.records_queue.empty() and self.producer_completed:
             # Producer completed and its items were consumed
             return False
         else :
@@ -539,37 +539,37 @@ class BForce():
         return self.producer_should_run
 
 
-    def consumer_get_queue_frow(self):
-        # Gets Frow from frows queue for consumer
+    def consumer_get_queue_record(self):
+        # Gets Frecord from records queue for consumer
         while self.consumer_should_continue():
-            # wait until producer put frow or consumer should stop
+            # wait until producer put record or consumer should stop
             try:
-                return self.frows_queue.get(block=False)
+                return self.records_queue.get(block=False)
             except queue.Empty:
                 # continue to check if consumer should run
                 # we cannot just terminate the loop.
                 # producer may put the at any moment.
                 continue
-        # Producer completed and ran out of Frows
-        # None means theres no any FRows left
+        # Producer completed and ran out of Frecords
+        # None means theres no any Records left
         return None
 
     def consumer(self, executor=None):
-        # Consumes items in frows_queue
+        # Consumes items in records_queue
         if executor == None:
             executor = self.create_or_get_executor()
         while True:
             # This will block until one of futures/tasks complete
             self.semaphore.acquire()
-            # This will wait until frow is available
+            # This will wait until record is available
             # Returns None if consumer should not continue running
-            frow = self.consumer_get_queue_frow()
-            if frow != None:
-                future = executor.submit(self.handle_attack, frow)
+            record = self.consumer_get_queue_record()
+            if record != None:
+                future = executor.submit(self.handle_attack, record)
                 self._current_tasks.add(future)
                 future.add_done_callback(self.task_done_callback)
             else:
-                # Consumer should stop as it ran out of frows
+                # Consumer should stop as it ran out of records
                 break
         self.close_session()
         self.consumer_done_callback()
@@ -580,7 +580,7 @@ class BForce():
         # setup semaphore and queue at start
         # sets value and maxsize to total_tasks
         self.semaphore = threading.Semaphore(self.total_tasks)
-        self.frows_queue = queue.Queue(self.total_tasks)
+        self.records_queue = queue.Queue(self.total_tasks)
 
         futures = []
         executor = self.create_or_get_executor()
@@ -601,8 +601,8 @@ class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
     base_attack_class = AttackAsync 
 
-    def __init__(self, target, ftable, loop_all=False):
-        super().__init__(target, ftable, loop_all)
+    def __init__(self, target, table, loop_all=False):
+        super().__init__(target, table, loop_all)
         self._current_tasks: Set[asyncio.Task]
 
     # start: Session methods
@@ -647,7 +647,7 @@ class BForceAsync(BForce):
         # Close session object shared by attack objects
         if self.session_exists():
             # Create fake attack object and set session
-            attack_object = self.create_attack_object(FRow())
+            attack_object = self.create_attack_object(Record())
             attack_object.set_session(await self.get_session())
             # close the session se on the object
             await attack_object.close_session()
@@ -661,25 +661,25 @@ class BForceAsync(BForce):
         # Creates async task to producer method
         return asyncio.create_task(self.producer_coroutine)
 
-    async def handle_attack(self, frow):
+    async def handle_attack(self, record):
         #print("run async def handle_attack()")
         # Handles attack on attack class with asyncio support
         session = await self.get_session()
-        async with self.create_attack_object(frow) as attack_object:
+        async with self.create_attack_object(record) as attack_object:
             #print("after self.create_attack_object()")
             if session != None:
                 # this line can speed request performance
                 attack_object.set_session(session)
             # .start_request() needs to be coroutine method
             await attack_object.start_request()
-            self.handle_attack_results(attack_object, frow)
+            self.handle_attack_results(attack_object, record)
 
-    async def handle_attacks(self, ftable):
-        # Performs attack on provided ftable using threads
+    async def handle_attacks(self, table):
+        # Performs attack on provided table using threads
         # Useful if attack class not using asyncio
         tasks:List[asyncio.Task] = []
-        for frow in ftable:
-            awaitable =  self.handle_attack(frow)
+        for record in table:
+            awaitable =  self.handle_attack(record)
             task = asyncio.ensure_future(awaitable)
             tasks.append(task)
             #task.add_done_callback(background_tasks.discard)
@@ -687,21 +687,21 @@ class BForceAsync(BForce):
         await asyncio.gather(*tasks, return_exceptions=False)
 
 
-    async def handle_attack_recursive(self, frow):
-        await self.handle_attack(frow)
+    async def handle_attack_recursive(self, record):
+        await self.handle_attack(record)
         while True:
-            frow = self.consumer_get_queue_frow()
-            if frow != None:
-                # Perform attack again on the frow
-                await self.handle_attack(frow)
+            record = self.consumer_get_queue_record()
+            if record != None:
+                # Perform attack again on the record
+                await self.handle_attack(record)
             else:
                 # Stop performing any other tasks
                 break
 
-    async def handle_attacks_recursive(self, ftable):
+    async def handle_attacks_recursive(self, table):
         tasks:Set[asyncio.Task] = set()
-        for frow in ftable:
-            awaitable =  self.handle_attack_recursive(frow)
+        for record in table:
+            awaitable =  self.handle_attack_recursive(record)
             task = asyncio.ensure_future(awaitable)
             tasks.add(task)
             self._current_tasks.add(task)
@@ -712,14 +712,14 @@ class BForceAsync(BForce):
 
 
     async def consumer(self):
-        # Consumes items in frows_queue
+        # Consumes items in records_queue
         tasks:Set[asyncio.Task] = set()
         count = 0
         # The while loop can be replaced by Semaphore object
         while count < self.total_tasks:
-            frow = self.consumer_get_queue_frow()
-            if frow != None:
-                awaitable =  self.handle_attack_recursive(frow)
+            record = self.consumer_get_queue_record()
+            if record != None:
+                awaitable =  self.handle_attack_recursive(record)
                 task = asyncio.create_task(awaitable)
                 tasks.add(task)
                 self._current_tasks.add(task)
@@ -740,7 +740,7 @@ class BForceAsync(BForce):
         # setup semaphore and queue at start
         # sets value and maxsize to total_tasks
         self.semaphore = threading.Semaphore(self.total_tasks)
-        self.frows_queue = queue.Queue(self.total_tasks)
+        self.records_queue = queue.Queue(self.total_tasks)
         # producer and consumer as awaitables
         awaitables = [self.producer_coroutine(), self.consumer()]
         tasks = []
@@ -752,36 +752,36 @@ class BForceAsync(BForce):
 
 
 class BForceBlock(BForce):
-    def __init__(self, target, ftable: FTable, loop_all=False) -> None:
-        super().__init__(target, ftable, loop_all)
+    def __init__(self, target, table: Table, loop_all=False) -> None:
+        super().__init__(target, table, loop_all)
 
-    def producer_should_switch(self, frow):
-        if len(self._columns) == 1:
-            if self._success_rows:
+    def producer_should_switch(self, record):
+        if len(self._fields) == 1:
+            if self._success_records:
                 return True
         else:
-            return not self.should_put_row(frow)
+            return not self.should_put_record(record)
 
     def _producer_loop_some(self):
-        if self._ftable.primary_column_exists():
-            for frows in self._ftable.rows_primary_grouped():
-                for frow in frows:
+        if self._table.primary_field_exists():
+            for records in self._table.records_primary_grouped():
+                for record in records:
                     if not self.producer_should_continue():
                         return
-                    elif not self.producer_should_switch(frow):
-                        yield frow
+                    elif not self.producer_should_switch(record):
+                        yield record
                     else:
                         break
         else:
-            err_msg = "FTable is missing primary column"
+            err_msg = "Table is missing primary field"
             raise Exception(err_msg)
     
     def _producer_loop_all(self):
-        for frow in self._ftable:
+        for record in self._table:
             if not self.producer_should_continue():
                 break
-            elif self.should_put_row(frow):
-                yield frow
+            elif self.should_put_record(record):
+                yield record
 
     def producer(self):
         # Gets and call current producer method
@@ -793,15 +793,15 @@ class BForceBlock(BForce):
     def consumer_should_continue(self):
         return self.consumer_should_run
 
-    def handle_attack(self, frow):
-        attack_object = self.create_attack_object(frow)
+    def handle_attack(self, record):
+        attack_object = self.create_attack_object(record)
         # Start a request with target
         attack_object.start_request()
-        self.handle_attack_results(attack_object, frow)
+        self.handle_attack_results(attack_object, record)
 
     def consumer(self):
-        for frow in self.producer():
-            self.handle_attack(frow)
+        for record in self.producer():
+            self.handle_attack(record)
         self.consumer_done_callback()
 
     def start(self):
@@ -819,21 +819,21 @@ if __name__ == "__main__":
     usernames = ["david", "marry", "pearl"] * 1000
     passwords = ["1234", "0000", "th234"]
 
-    # Creates columns for table
-    usernames_col = FColumn('usernames', usernames)
-    # Sets key name to use in row key in Table
+    # Creates fields for table
+    usernames_col = Field('usernames', usernames)
+    # Sets key name to use in record key in Table
     usernames_col.set_item_name("username")
-    passwords_col = FColumn('passwords', passwords)
+    passwords_col = Field('passwords', passwords)
     passwords_col.set_item_name("password")
 
-    table = FTable()
-    # Set common row to be shared by all rows
-    common_row = FRow()
-    common_row.add_item("submit", "login")
-    table.set_common_row(common_row)
-    # Add columns to table
-    table.add_column(usernames_col)
-    table.add_column(passwords_col)
+    table = Table()
+    # Set common record to be shared by all records
+    common_record = Record()
+    common_record.add_item("submit", "login")
+    table.set_common_record(common_record)
+    # Add fields to table
+    table.add_field(usernames_col)
+    table.add_field(passwords_col)
 
 
 

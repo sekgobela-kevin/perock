@@ -4,7 +4,7 @@ from perock.target import Responce
 from perock.target import Account
 from perock.target import Target
 
-from .test_forcetable import TestFRowCommon
+from .test_forcetable import TestRecordCommon
 
 
 class TestResponceCommon():
@@ -39,7 +39,7 @@ class TestResponceCommon():
         self.assertTrue(self.responce.closed)
 
 
-class TestAccountCommon(TestFRowCommon):
+class TestAccountCommon(TestRecordCommon):
     pass
 
 

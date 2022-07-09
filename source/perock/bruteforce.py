@@ -60,12 +60,12 @@ class BruteForceBase():
         target: 
             System or target to attack e.g webpage(url)
         table: 
-            FTable object or collection of FRow objects
+            Table object or collection of Record objects
 
         optimise: 
             True if should perfom optimisations based items of 'table' argument.
  
-        'optimise' allows skipping of some rows based on other rows that 
+        'optimise' allows skipping of some records based on other records that 
         were cracked. E.g username needs passwords combination needs to be 
         tried until username matches one of passwords but should stop as
         soon as theres a match.
@@ -74,9 +74,9 @@ class BruteForceBase():
         username already matched one of passwords. Its better to set
         'optimise' as True for username-password attack.
         '''
-        super().__init__("test target", forcetable.FTable())
+        super().__init__("test target", forcetable.Table())
         self.target = target
-        self.table: forcetable.FTable = table
+        self.table: forcetable.Table = table
         self.optimise = optimise
 
         self.bforce = self._create_bforce_object(
@@ -173,26 +173,26 @@ if __name__ == "__main__":
 
         import asyncio
 
-    #attack_class = BruteForce(attack.Attack, forcetable.FTable())
+    #attack_class = BruteForce(attack.Attack, forcetable.Table())
     #print(attack_class.start())
     usernames = ["Marry", "Bella", "Michael"]
     passwords = range(10000000)
 
-    # Creates columns for table
-    usernames_col = forcetable.FColumn('usernames', usernames)
-    # Sets key name to use in row key in Table
+    # Creates fields for table
+    usernames_col = forcetable.Field('usernames', usernames)
+    # Sets key name to use in record key in Table
     usernames_col.set_item_name("username")
-    passwords_col = forcetable.FColumn('passwords', passwords)
+    passwords_col = forcetable.Field('passwords', passwords)
     passwords_col.set_item_name("password")
 
-    table = forcetable.FTable()
-    # Set common row to be shared by all rows
-    common_row = forcetable.FRow()
-    common_row.add_item("submit", "login")
-    table.set_common_row(common_row)
-    # Add columns to table
-    table.add_primary_column(usernames_col)
-    table.add_column(passwords_col)
+    table = forcetable.Table()
+    # Set common record to be shared by all records
+    common_record = forcetable.Record()
+    common_record.add_item("submit", "login")
+    table.set_common_record(common_record)
+    # Add fields to table
+    table.add_primary_field(usernames_col)
+    table.add_field(passwords_col)
 
     bforce = TestBruteForce("", table, False)
 

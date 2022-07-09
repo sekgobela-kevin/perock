@@ -7,7 +7,7 @@ Languages: Python 3
 from typing import Iterable
 import time 
 
-from .forcetable import FRow
+from .forcetable import Record
 
 
 class Responce():
@@ -36,7 +36,7 @@ class Responce():
         return self._closed
 
 
-class Account(FRow):
+class Account(Record):
     '''Represents account information of item in item'''
     def __init__(self, items={}) -> None:
         super().__init__(items)

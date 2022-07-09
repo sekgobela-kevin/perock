@@ -23,8 +23,8 @@ class Runner():
         self._target = target
     
     def set_table(self, table):
-        if not isinstance(table, forcetable.FTable):
-            err_msg = "table needs to instance of FTable class not" +\
+        if not isinstance(table, forcetable.Table):
+            err_msg = "table needs to instance of Table class not" +\
             " " + str(type(table))
             raise TypeError(err_msg)
         self._table = table
@@ -78,21 +78,21 @@ if __name__ == "__main__":
     usernames = ["Marry", "Bella", "Michael"]
     passwords = range(10000000)
 
-    # Creates columns for table
-    usernames_col = forcetable.FColumn('usernames', usernames)
-    # Sets key name to use in row key in Table
+    # Creates fields for table
+    usernames_col = forcetable.Field('usernames', usernames)
+    # Sets key name to use in record key in Table
     usernames_col.set_item_name("username")
-    passwords_col = forcetable.FColumn('passwords', passwords)
+    passwords_col = forcetable.Field('passwords', passwords)
     passwords_col.set_item_name("password")
 
-    table = forcetable.FTable()
-    # Set common row to be shared by all rows
-    common_row = forcetable.FRow()
-    common_row.add_item("submit", "login")
-    table.set_common_row(common_row)
-    # Add columns to table
-    table.add_primary_column(usernames_col)
-    table.add_column(passwords_col)
+    table = forcetable.Table()
+    # Set common record to be shared by all records
+    common_record = forcetable.Record()
+    common_record.add_item("submit", "login")
+    table.set_common_record(common_record)
+    # Add fields to table
+    table.add_primary_field(usernames_col)
+    table.add_field(passwords_col)
 
     class AttackClass(TestAttackAsync):
         def __init__(self, target, data: dict, retries=1) -> None:

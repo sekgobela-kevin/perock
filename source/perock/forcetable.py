@@ -1,10 +1,10 @@
 '''
 Defines classes for operating with input data for attack
 such as 'usernames' and 'passwords'. Data is represented
-as table like with columns being things like iterator of
-'passwords' and row being combination of column items.
+as table like with fields being things like iterator of
+'passwords' and record being combination of field items.
 
-Rows are made up of combination of columns items. Row can be 
+Rows are made up of combination of fields items. Row can be 
 represented as map like {'username': 'john43', 'password': 'rj235'}.
 
 Author: Sekgobela Kevin
@@ -19,24 +19,24 @@ from . import product
 from . import util
 
 
-class FColumn():
-    '''Class for operating with column data. Column data  
+class Field():
+    '''Class for operating with field data. Column data  
     may include things like 'passwords', 'usernames', etc.'''
     def __init__(self, name, items) -> None:
         '''
-        Creates FColumn object
+        Creates Field object
         Parameters
         ----------
         name: str
-            Name of column
+            Name of field
         items: Iterator
-            Iterator or callable returning items of column
+            Iterator or callable returning items of field
         '''
-        # Stores items of column, e.g 'passwords'
+        # Stores items of field, e.g 'passwords'
         self.items = items
-        # Name of column
+        # Name of field
         self.name = name
-        # Name of each item of column
+        # Name of each item of field
         # Usually singular of coulun name e.g 'password'
         self.item_name = None
 
@@ -46,11 +46,11 @@ class FColumn():
         return iter(self.get_items())
 
     def set_name(self, name):
-        '''Sets name of column, e.g 'usernames\''''
+        '''Sets name of field, e.g 'usernames\''''
         self.name = name
 
     def set_item_name(self, name):
-        '''Sets name for refering to each/one item of column. e.g column name 
+        '''Sets name for refering to each/one item of field. e.g field name 
         may be 'passwords' but each of them be \'password\''''
         self.item_name = name
 
@@ -59,7 +59,7 @@ class FColumn():
         return util.iscallable(self.items)
 
     def get_items(self):
-        '''Returns items of column'''
+        '''Returns items of field'''
         if self.items_callable():
             return self.items()
         else:
@@ -81,20 +81,20 @@ class FColumn():
             raise Exception(err_msg)
 
     def set_primary(self):
-        # Sets the column as primary column
+        # Sets the field as primary field
         self.primary = True
 
     def unset_primary(self):
-        # Unset column as primary column
+        # Unset field as primary field
         self.primary = False
 
     def is_primary(self):
-        # Returns True if column is primary column
+        # Returns True if field is primary field
         return self.primary
 
 
-class FColumnFile(FColumn):
-    '''Class for creating column items from file in path''' 
+class FieldFile(Field):
+    '''Class for creating field items from file in path''' 
     def __init__(self, name, path) -> None:
         self._file = open(path)
         super().__init__(name, self._read_file_lines_callable)
@@ -121,29 +121,29 @@ class FColumnFile(FColumn):
 
 
 
-class FRow(dict):
-    '''Class for operating with row data. Row data represents
+class Record(dict):
+    '''Class for operating with record data. Row data represents
     records to be sent to target, e.g 'password' and 'username'.'''
     def __init__(self, items={}) -> None:
         '''
-        Creates FRow object from dictionary
+        Creates Record object from dictionary
         Parameters
         ----------
         items: Dict
-            (optional) Dictionary/map with row items
+            (optional) Dictionary/map with record items
         '''
         super().__init__(items)
 
     def add_item(self, name, value):
-        '''Adds item to row'''
+        '''Adds item to record'''
         self[name] = value
     
     def add_items(self, items):
-        '''Adds items to row'''
+        '''Adds items to record'''
         self.update(items)
 
     def set_items(self, items):
-        '''Sets/overides row items with specified items'''
+        '''Sets/overides record items with specified items'''
         self.update({})
         self.update(items)
 
@@ -154,206 +154,206 @@ class FRow(dict):
         return dict(self)
 
 
-class FTable():
+class Table():
     '''Represents table with data for performing attack'''
-    def __init__(self, columns=[]) -> None:
+    def __init__(self, fields=[]) -> None:
         '''
         Creates table with data for performing attack.
         Parameters
         ----------
-        columns: Iterator
-            Iterator with FColumn objects
+        fields: Iterator
+            Iterator with Field objects
         '''
-        # Stores rows of table
-        self.columns: Set[FColumn] = set(columns)
-        # Stores row with items to be shared by all rows
-        self.common_row = FRow()
-        # Stores rows of table
-        self.rows: Set[FRow] = set()
-        # Updates rows to match with couluns
-        self.update_rows()
+        # Stores records of table
+        self.fields: Set[Field] = set(fields)
+        # Stores record with items to be shared by all records
+        self.common_record = Record()
+        # Stores records of table
+        self.records: Set[Record] = set()
+        # Updates records to match with couluns
+        self.update_records()
 
-        self.primary_columns: Set[FColumn] = set()
-        self.primary_column: FColumn = None
+        self.primary_fields: Set[Field] = set()
+        self.primary_field: Field = None
 
-    def set_primary_column(self, column):
-        '''Set the column as primary column'''
-        self.primary_column = column
-        self.columns.add(column)
+    def set_primary_field(self, field):
+        '''Set the field as primary field'''
+        self.primary_field = field
+        self.fields.add(field)
 
-    def primary_column_exists(self):
-        '''Checks if table ha sprimary column'''
-        return self.primary_column != None
+    def primary_field_exists(self):
+        '''Checks if table ha sprimary field'''
+        return self.primary_field != None
 
 
-    def add_column(self, column):
+    def add_field(self, field):
         '''Adds a coulumn to table'''
-        if column.is_primary():
-            # adds column to primary columns
-            self.primary_columns.add(column)
-            self.set_primary_column(column)
-        self.columns.add(column)
-        # Updates rows to use the new column
+        if field.is_primary():
+            # adds field to primary fields
+            self.primary_fields.add(field)
+            self.set_primary_field(field)
+        self.fields.add(field)
+        # Updates records to use the new field
         self.update()
 
-    def add_primary_column(self, column):
-        '''Add the column and make it one of primary columns'''
-        self.primary_columns.add(column)
-        self.set_primary_column(column)
-        self.add_column(column)
+    def add_primary_field(self, field):
+        '''Add the field and make it one of primary fields'''
+        self.primary_fields.add(field)
+        self.set_primary_field(field)
+        self.add_field(field)
         self.update()
 
-    def get_primary_columns(self):
-        '''Returns primary column'''
-        return self.primary_columns
+    def get_primary_fields(self):
+        '''Returns primary field'''
+        return self.primary_fields
 
-    def get_primary_column(self):
-        '''Returns primary column'''
-        return self.primary_column
+    def get_primary_field(self):
+        '''Returns primary field'''
+        return self.primary_field
 
-    def get_columns(self):
-        '''Returns primary columns'''
-        return self.columns
-
-
-    def get_rows(self):
-        '''Returns rows of the table'''
-        return self.rows
+    def get_fields(self):
+        '''Returns primary fields'''
+        return self.fields
 
 
-    def get_column_names(self):
-        '''Returns names of columns in table'''
-        return {column.get_name() for column in self.columns}
+    def get_records(self):
+        '''Returns records of the table'''
+        return self.records
+
+
+    def get_field_names(self):
+        '''Returns names of fields in table'''
+        return {field.get_name() for field in self.fields}
 
     def get_item_names(self, force=False):
-        '''Returns item names from table columns'''
-        return {column.get_item_name(force) for column in self.columns}
+        '''Returns item names from table fields'''
+        return {field.get_item_name(force) for field in self.fields}
 
-    def get_columns_items(self):
-        '''Returns items of columns in table'''
-        return [column.get_items() for column in self.columns]
+    def get_fields_items(self):
+        '''Returns items of fields in table'''
+        return [field.get_items() for field in self.fields]
 
     def get_primary_items(self):
-        '''Returns items of primary column'''
-        if self.primary_column_exists():
-            return self.primary_column.get_items()
+        '''Returns items of primary field'''
+        if self.primary_field_exists():
+            return self.primary_field.get_items()
         else:
             return None
 
 
     @staticmethod
-    def dicts_to_rows(dicts):
-        '''Returns iterable of rows from iterable of dictionaries'''
-        # Using map has advantage of using [FRow(dict_) for dict_ in dicts]
+    def dicts_to_records(dicts):
+        '''Returns iterable of records from iterable of dictionaries'''
+        # Using map has advantage of using [Record(dict_) for dict_ in dicts]
         # Map will save memory(uses iterators than just list)
         # 'dicts' can sometimes be large in Millions or Billions
-        return map(lambda dict_: FRow(dict_), dicts)
+        return map(lambda dict_: Record(dict_), dicts)
 
     @staticmethod
-    def rows_to_dicts(rows):
-        '''Returns iterable of dictionaries from iterable of rows'''
-        # This is not worth it as FRow is instance of 'dict'
-        return map(lambda row: dict(row), rows)
+    def records_to_dicts(records):
+        '''Returns iterable of dictionaries from iterable of records'''
+        # This is not worth it as Record is instance of 'dict'
+        return map(lambda record: dict(record), records)
 
 
     @classmethod
-    def columns_to_rows(cls, columns, common_row=FRow()):
-        '''Returns rows from columns'''
-        # Get columns item names(will act as keys)
+    def fields_to_records(cls, fields, common_record=Record()):
+        '''Returns records from fields'''
+        # Get fields item names(will act as keys)
         # 'item_name' is more suitable than 'name'(name of coulumn)
-        column_names = [column.get_item_name(True) for column in columns]
-        # Get columns items(act as values)
-        columns_items = [column.get_items for column in columns]
+        field_names = [field.get_item_name(True) for field in fields]
+        # Get fields items(act as values)
+        fields_items = [field.get_items for field in fields]
         # Use itertools.product() to get combination of values
-        for columns_items in product.product(*columns_items):
-            if not columns_items:
+        for fields_items in product.product(*fields_items):
+            if not fields_items:
                 break
-            # Creates empty row object
-            row = FRow()
-            # Link back column items to their column names
-            # and then add results to row
-            for index, column_item in enumerate(columns_items):
-                # Adds column name and column item to row
-                row.add_item(column_names[index], column_item)
-                # Adds also common row to the row
-                row.add_items(common_row)
+            # Creates empty record object
+            record = Record()
+            # Link back field items to their field names
+            # and then add results to record
+            for index, field_item in enumerate(fields_items):
+                # Adds field name and field item to record
+                record.add_item(field_names[index], field_item)
+                # Adds also common record to the record
+                record.add_items(common_record)
             # itertools.product() output can be larger
-            # Appending 'row' to collection is waste of memory
-            yield row
+            # Appending 'record' to collection is waste of memory
+            yield record
 
     @classmethod
-    def columns_to_rows_primary_grouped(
+    def fields_to_records_primary_grouped(
         cls, 
-        columns: Set[FColumn], 
-        primary_column: FColumn, 
-        common_row=FRow()):
-        if len(columns) >= 2:
-            primary_items = primary_column.get_items()
-            # other_columns needs to exclude primary column
-            other_columns = columns.copy()
-            other_columns.discard(primary_column)
-            # Loop each of primary column items
-            primary_grouped_rows = []
+        fields: Set[Field], 
+        primary_field: Field, 
+        common_record=Record()):
+        if len(fields) >= 2:
+            primary_items = primary_field.get_items()
+            # other_fields needs to exclude primary field
+            other_fields = fields.copy()
+            other_fields.discard(primary_field)
+            # Loop each of primary field items
+            primary_grouped_records = []
             for primary_item in primary_items:
-                # Creates column for primary column
-                # Name of column is taken from primary column
-                column = FColumn(primary_column.get_name(), [primary_item])
-                column.set_item_name(primary_column.get_item_name())
-                # Merge the column with other columns
-                columns = other_columns.union([column])
-                # Creates rows the columns
-                rows =  cls.columns_to_rows(columns, common_row)
-                primary_grouped_rows.append(rows)
-            return primary_grouped_rows
+                # Creates field for primary field
+                # Name of field is taken from primary field
+                field = Field(primary_field.get_name(), [primary_item])
+                field.set_item_name(primary_field.get_item_name())
+                # Merge the field with other fields
+                fields = other_fields.union([field])
+                # Creates records the fields
+                records =  cls.fields_to_records(fields, common_record)
+                primary_grouped_records.append(records)
+            return primary_grouped_records
         else:
-            return [cls.columns_to_rows(columns, common_row)]
+            return [cls.fields_to_records(fields, common_record)]
 
-    def rows_primary_grouped(self):
-        if self.primary_column_exists():
-            return self.columns_to_rows_primary_grouped(
-                self.columns,
-                self.primary_column,
-                self.common_row
+    def records_primary_grouped(self):
+        if self.primary_field_exists():
+            return self.fields_to_records_primary_grouped(
+                self.fields,
+                self.primary_field,
+                self.common_record
             )
         else:
-            err_msg = "Primary column is needed, but not found"
+            err_msg = "Primary field is needed, but not found"
             raise Exception(err_msg)
 
-    def set_common_row(self, row):
-        '''Sets row with items to be shared by all rows'''
-        self.common_row = row
-        # update rows to use the new common row
+    def set_common_record(self, record):
+        '''Sets record with items to be shared by all records'''
+        self.common_record = record
+        # update records to use the new common record
         self.update()
 
-    def get_common_row(self):
-        return self.common_row
+    def get_common_record(self):
+        return self.common_record
 
-    def update_rows(self):
-        '''Updates table rows to keep-up with columns'''
-        self.rows = self.columns_to_rows(self.columns, self.common_row)
+    def update_records(self):
+        '''Updates table records to keep-up with fields'''
+        self.records = self.fields_to_records(self.fields, self.common_record)
 
     def update(self):
-        '''Updates table including its rows'''
-        # Theres nothing to be updated than just the rows
-        self.update_rows()
+        '''Updates table including its records'''
+        # Theres nothing to be updated than just the records
+        self.update_records()
 
-    def __iter__(self) -> Iterator[FRow]:
-        return iter(self.rows)
+    def __iter__(self) -> Iterator[Record]:
+        return iter(self.records)
 
 
 
-def get_row_primary_item(row, primary_column):
-    '''Returns primary item from row'''
-    column_name = primary_column.get_item_name(True)
-    # Rember that FRow is instance of dict
-    primary_item = row[column_name]
+def get_record_primary_item(record, primary_field):
+    '''Returns primary item from record'''
+    field_name = primary_field.get_item_name(True)
+    # Rember that Record is instance of dict
+    primary_item = record[field_name]
     return primary_item
 
 
-def row_primary_included(row, primary_column, primary_column_items):
-    '''Returns True if primary item of row is in primary_column_items'''
-    primary_item = get_row_primary_item(row, primary_column)
-    return primary_item in primary_column_items
+def record_primary_included(record, primary_field, primary_field_items):
+    '''Returns True if primary item of record is in primary_field_items'''
+    primary_item = get_record_primary_item(record, primary_field)
+    return primary_item in primary_field_items
 
 
 
@@ -363,21 +363,21 @@ if __name__ == "__main__":
     usernames = ["david", "marry", "pearl"]*1
     passwords = ["1234", "0000", "th234"]
 
-    # Creates columns for table
-    usernames_col = FColumn('usenames', usernames)
-    # Sets key name to use in row key in Table
+    # Creates fields for table
+    usernames_col = Field('usenames', usernames)
+    # Sets key name to use in record key in Table
     usernames_col.set_item_name("username")
-    passwords_col = FColumn('passwords', passwords)
+    passwords_col = Field('passwords', passwords)
     passwords_col.set_item_name("password")
 
-    table = FTable()
-    # Set common row to be shared by all rows
-    common_row = FRow()
-    common_row.add_item("submit", "login")
-    table.set_common_row(common_row)
-    # Add columns to table
-    table.add_column(usernames_col)
-    table.add_column(passwords_col)
-    # print the rows with common row
+    table = Table()
+    # Set common record to be shared by all records
+    common_record = Record()
+    common_record.add_item("submit", "login")
+    table.set_common_record(common_record)
+    # Add fields to table
+    table.add_field(usernames_col)
+    table.add_field(passwords_col)
+    # print the records with common record
     # Realise that the keys match ones set by set_item_name()
     print(list(table))
