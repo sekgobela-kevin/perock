@@ -12,7 +12,6 @@ Date: June 2022
 Languages: Python 3
 '''
 from io import FileIO
-import itertools
 from typing import Iterator, Set
 
 from . import product
@@ -144,7 +143,7 @@ class Record(dict):
 
     def set_items(self, items):
         '''Sets/overides record items with specified items'''
-        self.update({})
+        self.clear()
         self.update(items)
 
     def get_item(self, name):
@@ -170,8 +169,6 @@ class Table():
         self.common_record = Record()
         # Stores records of table
         self.records: Set[Record] = set()
-        # Updates records to match with couluns
-        self.update_records()
 
         self.primary_fields: Set[Field] = set()
         self.primary_field: Field = None
@@ -194,14 +191,12 @@ class Table():
             self.set_primary_field(field)
         self.fields.add(field)
         # Updates records to use the new field
-        self.update()
 
     def add_primary_field(self, field):
         '''Add the field and make it one of primary fields'''
         self.primary_fields.add(field)
         self.set_primary_field(field)
         self.add_field(field)
-        self.update()
 
     def get_primary_fields(self):
         '''Returns primary field'''
@@ -215,9 +210,19 @@ class Table():
         '''Returns primary fields'''
         return self.fields
 
+    def add_record(self, record):
+        # Adds record to table
+        self.records.add(record)
+
+    def set_records(self, records):
+        # Sets records of table
+        self.records = records
 
     def get_records(self):
         '''Returns records of the table'''
+        if self.fields:
+            # Update records if there are fields in table
+            self.update()
         return self.records
 
 
@@ -322,8 +327,7 @@ class Table():
     def set_common_record(self, record):
         '''Sets record with items to be shared by all records'''
         self.common_record = record
-        # update records to use the new common record
-        self.update()
+        
 
     def get_common_record(self):
         return self.common_record
@@ -338,7 +342,7 @@ class Table():
         self.update_records()
 
     def __iter__(self) -> Iterator[Record]:
-        return iter(self.records)
+        return iter(self.get_records())
 
 
 

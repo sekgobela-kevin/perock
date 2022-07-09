@@ -48,6 +48,14 @@ class Attempt():
         # represents our responce
         self.responce = None
 
+    def get_target(self):
+        # Returns target to be used for attack
+        return self.target
+
+    def get_data(self):
+        # Returns data to be used for attack
+        return self.data
+
     @classmethod
     def _add_unraised_exception(cls, exception):
         # Adds exception not to be raised on .request(self)
@@ -196,6 +204,12 @@ class AttemptAsync(Attempt):
         "Closes responce object"
         await try_close_async(self.responce)
 
+    async def before_start_request(self):
+        super().before_start_request()
+
+    async def after_start_request(self):
+        super().after_start_request()
+
     async def request(self):
         # Strictly should be async with await
         # Responce should be returned else None if request failed
@@ -205,7 +219,7 @@ class AttemptAsync(Attempt):
     async def start_request(self, retries=1):
         '''Start a request and update internal attributes based on
         returned responce'''
-        self.before_start_request()
+        await self.before_start_request()
         try:
             self.responce =  await self.request()
         except Exception as e:
@@ -214,7 +228,7 @@ class AttemptAsync(Attempt):
             else:
                 print(self._should_raise_exception(e), self.unraised_exceptions_classes)
                 self.responce = e
-        self.after_start_request()
+        await self.after_start_request()
 
     async def close(self):
         #self.close_session()

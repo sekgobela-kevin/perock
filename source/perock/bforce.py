@@ -30,7 +30,7 @@ Languages: Python 3
 # Each class implements methods their own way which adds even more lines.
 
 
-from typing import Callable, Dict, List, Set, Type
+from typing import Callable, Dict, Iterable, List, Set, Type
 import logging
 import queue
 import threading
@@ -495,10 +495,12 @@ class BForce():
         self._current_tasks.discard(future)
         try:
             future.result()
-            #self.cancel_consumer()
-            #self.cancel_producer()
         except Exception as e:
+            # Cancels producer and consumer and re-raise exception
+            # Cancelling current tasks would result in CancelError
+            # Its better to leave running tasks and let them finish.
             self.cancel_producer()
+            self.cancel_consumer()
             raise e
 
 
@@ -518,6 +520,12 @@ class BForce():
     def cancel_producer(self):
         # Requests producer to stop running
         self.producer_should_run = False
+        try:
+            # Get item from records_queue to give producer opportunity to stop.
+            # This applies incase producer has stopped
+            self.records_queue.get(block=False)
+        except queue.Empty:
+            pass
 
     def cancel_consumer(self):
         # Requests producer to stop running
@@ -591,7 +599,6 @@ class BForce():
             future.result()
         if self.executor == None:
             executor.shutdown(True)
-        print("done")
 
 
 
@@ -604,6 +611,10 @@ class BForceAsync(BForce):
     def __init__(self, target, table, loop_all=False):
         super().__init__(target, table, loop_all)
         self._current_tasks: Set[asyncio.Task]
+        self.attack_class: Type[AttackAsync]
+
+    #def create_attack_object(self, data) -> AttackAsync: 
+    #    ...
 
     # start: Session methods
     def session_exists(self):
@@ -661,7 +672,32 @@ class BForceAsync(BForce):
         # Creates async task to producer method
         return asyncio.create_task(self.producer_coroutine)
 
-    async def handle_attack(self, record):
+    async def handle_attack_results(
+        self, 
+        attack_object: AttackAsync, 
+        record: Record):
+        # Handles results of attack on attack object
+        # start_request() was already called and finished
+        # responce can be accessed with self.responce
+        if await attack_object.errors():
+            self.attack_error_callback(attack_object, record)
+        elif await attack_object.failure():
+            self.attack_failure_callback(attack_object, record)
+        elif await attack_object.success():
+            self.attack_success_callback(attack_object, record)
+        else:
+            err_msg = f'''
+            Not sure if attack failed or was success
+
+            Record: {record}
+            Target Reached: {attack_object.target_reached()}
+            Errors: {await attack_object.errors()}
+            Failed: {await attack_object.failure()}
+            Success: {await attack_object.success()}
+            '''
+            raise Exception(err_msg)            
+
+    async def handle_attack(self, record: Record):
         #print("run async def handle_attack()")
         # Handles attack on attack class with asyncio support
         session = await self.get_session()
@@ -672,9 +708,9 @@ class BForceAsync(BForce):
                 attack_object.set_session(session)
             # .start_request() needs to be coroutine method
             await attack_object.start_request()
-            self.handle_attack_results(attack_object, record)
+            await self.handle_attack_results(attack_object, record)
 
-    async def handle_attacks(self, table):
+    async def handle_attacks(self, table: Iterable[Type[Record]]):
         # Performs attack on provided table using threads
         # Useful if attack class not using asyncio
         tasks:List[asyncio.Task] = []

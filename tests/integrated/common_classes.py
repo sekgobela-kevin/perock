@@ -1,9 +1,9 @@
-import perock
+from perock import attack
 from perock.target import *
 
 
 
-class AttackSample(perock.Attack):
+class AttackSample(attack.Attack):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
         self.target: Target
@@ -19,7 +19,7 @@ class AttackSample(perock.Attack):
 
 
 
-class AttackAsyncSample(perock.AttackAsync):
+class AttackAsyncSample(attack.AttackAsync):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
         self.target: Target
@@ -29,10 +29,7 @@ class AttackAsyncSample(perock.AttackAsync):
         # Returns Fake responce
         return self.target.login(self.account)
 
-    def errors(self):
-        return super().errors()
-
-    def success(self):
+    async def success(self):
         return self.target.account_success(self.account)
 
 

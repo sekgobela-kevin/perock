@@ -1,4 +1,16 @@
 '''
+Starts and runs bruteforce attack on target with specied Attack and 
+BForce class.
+
+The module defines two(2) classes being Runner and RunnerAsync.
+Runner can be used for asynchronous and threaded execution while
+RunnerAsync is for asynchronous version of Runner class which
+has methods that take long to finish being async/coroutine.
+
+The module aims to simplify 'bforce' module similar to 'brutoforce'
+module. Checkout 'brutoforce' module which uses different way of 
+simplifying 'bforce' module.
+
 Author: Sekgobela Kevin
 Date: July 2022
 Languages: Python 3
@@ -114,8 +126,23 @@ if __name__ == "__main__":
             return True
 
 
+    class WebAttackClass(WebAttackAsync):
+        def __init__(self, target, data: dict, retries=1) -> None:
+            super().__init__(target, data, retries)
 
-    runner = RunnerAsync(WebAttackAsync)
+        async def request(self):
+            super().request()
+
+        def success(self):
+            print(asyncio.wait([self.text]))
+            return self.target_reached()
+
+        async def start(self):
+            super().start_request()
+
+
+
+    runner = RunnerAsync(WebAttackClass)
     runner.set_target('https://example.com')
     runner.set_table(table)
     runner.set_optimise()

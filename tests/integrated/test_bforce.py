@@ -7,8 +7,9 @@ from perock.target import Account
 from perock.target import Target
 
 from perock.forcetable import Table
+from perock.forcetable import FieldFile
 
-import perock
+from perock import bforce
 from perock import target
 
 
@@ -23,8 +24,8 @@ class BForceCommonTest(CommonTest):
     def setUpClass(cls):
         super().setUpClass()
         # Create passwords and usernames fields
-        cls.usernames_field = perock.FieldFile("usernames", cls.usernames_file_path)
-        cls.passwords_field = perock.FieldFile("passwords", cls.passwords_file_path)
+        cls.usernames_field = FieldFile("usernames", cls.usernames_file_path)
+        cls.passwords_field = FieldFile("passwords", cls.passwords_file_path)
 
         # Set items name 
         cls.usernames_field.set_item_name("username")
@@ -70,7 +71,7 @@ class BForceCommonTest(CommonTest):
 
 
     def setup_bforce_object(self):
-        self.bforce = perock.BForce(self.target, self.table)
+        self.bforce = bforce.BForce(self.target, self.table)
         self.bforce.set_attack_class(AttackSample)
 
     def start(self):

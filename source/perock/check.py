@@ -4,8 +4,8 @@ Author: Sekgobela Kevin
 Date: June 2022
 Languages: Python 3
 '''
-
 from .attempt import Attempt
+
 
 class Check():
     '''Checks and analyses responce from attempt to log to system
@@ -56,3 +56,27 @@ class Check():
             return self.errors()
         return None
 
+
+class CheckAsync(Check):
+    def __init__(self, attempt_object) -> None:
+        super().__init__(attempt_object)
+
+    async def success(self):
+        return super().success()
+
+    async def failure(self):
+        return not await self.success()
+
+    async def target_errors(self):
+        return super().target_errors()
+
+    async def client_errors(self):
+        return super().client_errors()
+
+    async def errors(self):
+        return  await self.client_errors() or await self.target_errors()
+
+    async def responce_errors(self):
+        if self._attempt_object.target_reached():
+            return await self.errors()
+        return None

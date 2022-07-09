@@ -6,7 +6,7 @@ from .test_attempt import TestAttemptAsyncCommon
 from .test_check import TestCheckCommon
 from .test_check import TestCheckAsyncCommon
 
-from perock.target import Target
+from perock.target import Responce, Target
 from perock.target import Account
 from perock.attack import Attack, AttackAsync
 
@@ -15,6 +15,7 @@ class SampleAttack(Attack):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
         self.target: Target
+        self.responce: Responce
         self.request_should_fail = False
     
     def request(self):
@@ -23,6 +24,10 @@ class SampleAttack(Attack):
             return self.target.login(account)
         else:
             return Exception()
+
+    def success(self):
+        if not self.errors():
+            return "unlocked" in self.responce.get_message()
 
     def set_responce(self, responce):
         self.responce = responce
@@ -40,6 +45,10 @@ class SampleAttackAsync(AttackAsync):
             return self.target.login(account)
         else:
             return Exception()
+
+    async def success(self):
+        if not await self.errors():
+            return "unlocked" in self.responce.get_message()
 
     def set_responce(self, responce):
         self.responce = responce
