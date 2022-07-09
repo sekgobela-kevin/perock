@@ -144,7 +144,7 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
 
 
 
-class _TestAttackMatrix(Attack):
+class _TestAttackMatrix():
     '''Attack class for testing purposes'''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

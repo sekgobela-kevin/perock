@@ -21,6 +21,7 @@ from . import forcetable
 
 
 class Runner():
+    '''Runs bruteforce attack on target using threads'''
     def __init__(self, 
     attack_class=attack.Attack, 
     bforce_class=bforce.BForce) -> None:
@@ -31,21 +32,41 @@ class Runner():
         self._table = None
         self._optimise = True
 
+        self._max_parallel_tasks = None
+        self._max_workers = None
+        self._executor = None
+
     def set_target(self, target):
+        '''Sets target/pointer to target to use for attack'''
         self._target = target
     
     def set_table(self, table):
+        '''Sets table object with records for attack'''
         if not isinstance(table, forcetable.Table):
             err_msg = "table needs to instance of Table class not" +\
             " " + str(type(table))
             raise TypeError(err_msg)
         self._table = table
 
-    def set_optimise(self):
+    def enable_optimise(self):
+        '''Enables optimisations(requires primary column)'''
         self._optimise = True
 
-    def unset_optimise(self):
+    def disable_optimise(self):
+        '''Disables optimisations(primary column not required)'''
         self._optimise = False
+
+    def set_max_parallel_tasks(self, total_tasks: int):
+        '''Sets maximum number of tasks to run in parallel'''
+        self._max_parallel_tasks = total_tasks
+
+    def set_max_workers(self, max_workers: int):
+        '''Sets maximum workers to use to execute tasks in parallel'''
+        self._max_workers = max_workers
+
+    def set_executor(self, executor):
+        '''Sets executor to use to execute tasks'''
+        self._executor = executor
 
     def _create_bforce_object(self):
         if self._target == None:
@@ -54,21 +75,35 @@ class Runner():
         if self._table == None:
             err_msg = "Table is missing or None"
             raise Exception(err_msg)
+
         bforce = self._bforce_class(
             self._target, self._table, not self._optimise
         )
         bforce.set_attack_class(self._attack_class)
+
+        # Now the object is created
+        # Its time to set some attributes on it
+        # But should set them only when neccessay
+        if self._max_workers != None:
+            bforce.set_max_workers(self.set_max_workers)
+        if self._max_parallel_tasks != None:
+            bforce.set_total_tasks(self._max_parallel_tasks)
+        if self._executor != None:
+            bforce.set_executor(self._executor)
+
         return bforce
 
     def start(self):
         bforce_object = self._create_bforce_object()
-        bforce_object.bforce.start()
+        bforce_object.start()
 
     def run(self):
+        '''Entry point to starting attack on target'''
         self.start()
 
 
 class RunnerAsync(Runner):
+    '''Runs bruteforce attack on target using asyncio'''
     def __init__(self, 
     attack_class=attack.AttackAsync, 
     bforce_class=bforce.BForceAsync) -> None:
@@ -80,6 +115,14 @@ class RunnerAsync(Runner):
 
     async def run(self):
         await self.start()
+
+class RunnerBlock(Runner):
+    '''Runs bruteforce attack on target synchronously(blocking)'''
+    def __init__(self, 
+    attack_class=attack.AttackAsync, 
+    bforce_class=bforce.BForceBlock) -> None:
+        super().__init__(attack_class, bforce_class)
+
 
 
 
@@ -145,5 +188,5 @@ if __name__ == "__main__":
     runner = RunnerAsync(WebAttackClass)
     runner.set_target('https://example.com')
     runner.set_table(table)
-    runner.set_optimise()
+    runner.enable_optimise()
     asyncio.run(runner.run())
