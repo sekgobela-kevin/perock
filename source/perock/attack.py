@@ -12,6 +12,8 @@ from .attempt import AttemptAsync
 from .check import Check
 from .check import CheckAsync
 
+from .responce import BytesCompare
+
 
 class Attack(Attempt, Check):
     '''Attempts to logs into system with data'''
@@ -41,6 +43,38 @@ class Attack(Attempt, Check):
                 self.responce_msg = f"{main_err_msg}(fault 'Client')"
 
 
+class AttackText(Attack, BytesCompare):
+    '''Attack class with responce containing bytes or text'''
+    def __init__(self, target, data: dict, retries=1) -> None:
+        BytesCompare.__init__(self, b"")
+        super().__init__(target, data, retries)
+
+    def responce_content(self) -> str:
+        '''Returns string or bytes from responce'''
+        raise NotImplementedError
+
+    def success(self) -> bool:
+        return BytesCompare.success(self)
+
+    def failure(self) -> bool:
+        return BytesCompare.failure(self)
+
+    def target_errors(self) -> bool:
+        return BytesCompare.target_error(self)
+
+    def client_errors(self) -> bool:
+        if super().client_errors():
+            return True
+        return BytesCompare.target_error(self)
+
+    def after_start_request(self):
+        super().after_start_request()
+        responce_content = self.responce_content()
+        responce_bytes = self._create_responce_bytes(responce_content)
+        self._responce_bytes = responce_bytes
+
+
+
 class AttackAsync(AttemptAsync, CheckAsync):
     '''Perform attack using request implemeted with asyncio'''
     base_attempt_class = AttemptAsync
@@ -61,4 +95,37 @@ class AttackAsync(AttemptAsync, CheckAsync):
                 self.responce_msg = f"{main_err_msg}(fault 'Target')"
             elif await self.client_errors():
                 self.responce_msg = f"{main_err_msg}(fault 'Client')"
+
+
+
+class AttackTextAsync(AttackAsync, BytesCompare):
+    '''Attack class with responce containing bytes or text'''
+    def __init__(self, target, data: dict, retries=1) -> None:
+        BytesCompare.__init__(self, b"")
+        super().__init__(target, data, retries)
+
+    async def responce_content(self) -> str:
+        '''Returns string or bytes from responce'''
+        raise NotImplementedError
+
+    async def success(self) -> bool:
+        return BytesCompare.success(self)
+
+    async def failure(self) -> bool:
+        return BytesCompare.failure(self)
+
+    async def target_errors(self) -> bool:
+        return BytesCompare.target_error(self)
+
+    async def client_errors(self) -> bool:
+        if await super().client_errors():
+            return True
+        return BytesCompare.target_error(self)
+
+    async def after_start_request(self):
+        await super().after_start_request()
+        responce_content = await self.responce_content()
+        responce_bytes = self._create_responce_bytes(responce_content)
+        self._responce_bytes = responce_bytes
+
 

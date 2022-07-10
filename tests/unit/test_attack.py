@@ -8,7 +8,7 @@ from .test_check import TestCheckAsyncCommon
 
 from perock.target import Responce, Target
 from perock.target import Account
-from perock.attack import Attack, AttackAsync
+from perock.attack import Attack, AttackAsync, AttackText, AttackTextAsync
 
 
 class SampleAttack(Attack):
@@ -28,6 +28,34 @@ class SampleAttack(Attack):
     def success(self):
         if not self.errors():
             return "unlocked" in self.responce.get_message()
+
+    def set_responce(self, responce):
+        self.responce = responce
+
+
+class SampleAttackText(AttackText):
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, retries)
+        self.target: Target
+        self.responce: Responce
+        self.request_should_fail = False
+
+        self.set_success_bytes_strings(["unlocked"])
+        self.set_failure_bytes_strings(["Failed to log"])
+        self.set_target_error_bytes_strings(["Our system"])
+
+    def responce_content(self) -> str:
+        if self.target_reached():
+            return self.responce.get_message()
+        else:
+            return str(self.responce)
+    
+    def request(self):
+        if not self.request_should_fail:
+            account = Account(self.data)
+            return self.target.login(account)
+        else:
+            return Exception()
 
     def set_responce(self, responce):
         self.responce = responce
@@ -53,6 +81,33 @@ class SampleAttackAsync(AttackAsync):
     def set_responce(self, responce):
         self.responce = responce
 
+
+class SampleAttackTextAsync(AttackTextAsync):
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, retries)
+        self.target: Target
+        self.responce: Responce
+        self.request_should_fail = False
+
+        self.set_success_bytes_strings(["unlocked"])
+        self.set_failure_bytes_strings(["Failed to log"])
+        self.set_target_error_bytes_strings(["Our system"])
+
+    async def responce_content(self) -> str:
+        if self.target_reached():
+            return self.responce.get_message()
+        else:
+            return str(self.responce)
+    
+    async def request(self):
+        if not self.request_should_fail:
+            account = Account(self.data)
+            return self.target.login(account)
+        else:
+            return Exception()
+
+    def set_responce(self, responce):
+        self.responce = responce
 
 
 class TestAttackCommon(TestAttemptCommon, TestCheckCommon):
@@ -98,8 +153,37 @@ class TestAttackCommon(TestAttemptCommon, TestCheckCommon):
         self.assertEqual(self.attack.get_attempt_object(), self.attack)
 
 
+class TestAttackTextCommon(TestAttackCommon):
+    def create_check_objects(self):
+        # Initialise Check objects
+        # Attack object is also Check object(inheritance)
+        self.check = SampleAttackText(self.target, self.data)
+        self.check2 = SampleAttackText(self.target, self.data2)
+        self.check3 = SampleAttackText(self.target, self.data3)
+
+    def test_target_errors(self):
+        self.assertFalse(self.check.target_errors())
+
+
 class TestAttackAsyncCommon(TestAttemptAsyncCommon, TestCheckAsyncCommon):
     pass
+
+
+class TestAttackTextAsyncCommon(TestAttackAsyncCommon):
+    def create_check_objects(self):
+        # Initialises Check objects
+        self.check = SampleAttackTextAsync(self.target, self.data)
+        self.check2 = SampleAttackTextAsync(self.target, self.data2)
+        self.check3 = SampleAttackTextAsync(self.target, self.data3)
+
+        # Create new attempt objects to avoid changing ones used by
+        # TestAttemptSetUpAsync.
+        # This class may be reused by tests for AttackAsync class.
+        self.create_attempt_objects()
+
+    async def test_target_errors(self):
+        self.assertFalse(await self.check.target_errors())
+
 
 
 
@@ -107,7 +191,15 @@ class TestAttackAsyncCommon(TestAttemptAsyncCommon, TestCheckAsyncCommon):
 class TestAttack(TestAttackCommon, unittest.TestCase):
     pass
 
+class TestAttackText(TestAttackTextCommon, unittest.TestCase):
+    pass
+
 class TestAttackAsync(TestAttackAsyncCommon, unittest.IsolatedAsyncioTestCase):
+    pass
+
+class TestAttackTextAsync(
+    TestAttackTextAsyncCommon, 
+    unittest.IsolatedAsyncioTestCase):
     pass
 
 
