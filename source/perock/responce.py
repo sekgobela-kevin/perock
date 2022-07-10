@@ -1,8 +1,13 @@
 
 
-class ResponceBytes():
-    def __init__(self, __bytes):
-        self._bytes = self.to_bytes(__bytes)
+
+class Bytes():
+    '''Represents bytes from responce'''
+    def __init__(self, __bytes=b""):
+        if isinstance(__bytes, Bytes):
+            self._bytes = __bytes.get_bytes()
+        else:
+            self._bytes = self.to_bytes(__bytes)
         self._contains_strict = True
 
     def get_bytes(self):
@@ -46,7 +51,25 @@ class ResponceBytes():
 
     def contains_all(self, bytes_iterator):
         filtered = list(self.contains_filter(self._bytes, bytes_iterator))
-        return len(filtered) == len(list(bytes_iterator))
+        if not filtered:
+            return False
+        return len(filtered) == len(bytes_iterator)
+
+    def contains_iterator(self, bytes_iterator):
+        if self._contains_strict:
+            return self.contains_all(bytes_iterator)
+        else:
+            return self.contains_any(bytes_iterator)
+
+    def lower(self):
+        return self.__class__(self._bytes.lower())
+
+    def upper(self):
+        return self.__class__(self._bytes.upper())
+
+
+    def __eq__(self, __o: object) -> bool:
+        return self._bytes == __o.get_bytes()
 
     def __str__(self) -> str:
         return self.to_text(self._bytes)
@@ -55,13 +78,12 @@ class ResponceBytes():
         return self.__class__(self.get_bytes() + other.get_bytes())
 
     def __contains__(self, other):
+        #if isinstance(other, self.__class__):
+        #    return other.to_bytes() in self._bytes
         if isinstance(other, (str, bytes)):
-            return self.to_bytes(other) in self.get_bytes()
+            return self.to_bytes(other) in self._bytes
         else:
-            if self._contains_strict:
-                return self.contains_all(other)
-            else:
-                return self.contains_any(other)
+            return self.contains_iterator(other)
 
     def __len__(self):
         return len(self._bytes)
@@ -70,7 +92,149 @@ class ResponceBytes():
         return iter(self._bytes)
 
 
-if __name__ == "__main__":
-    responce_bytes =  ResponceBytes("responce in bytes")
 
-    print(["responce", b"bytes"] in responce_bytes)
+class Compare():
+    '''Compares responce with other objects'''
+    def __init__(self, responce, other) -> None:
+        self._responce = responce
+        self._other = other
+
+    def success(self):
+        raise NotImplementedError
+
+    def failure(self):
+        raise NotImplementedError
+
+    def error(self):
+        raise NotImplementedError
+
+    def wait_error(self):
+        raise NotImplementedError
+
+    def not_found_error(self):
+        raise NotImplementedError
+
+    def access_denied_error(self, account):
+        raise NotImplementedError
+
+    def target_error(self, account):
+        raise NotImplementedError
+
+    def client_error(self, account):
+        raise NotImplementedError
+
+
+class BytesCompare(Compare):
+    '''Compares bytes of responce with other bytes'''
+    def __init__(self, bytes_string, contains_strict=False) -> None:
+        super().__init__(bytes_string, None)
+        self._contains_strict = contains_strict
+        self._responce_bytes = self._create_responce_bytes(bytes_string)
+
+        self._success_bytes_strings = set()
+        self._failure_bytes_strings = set()
+        self._error_bytes_strings = set()
+
+        self._wait_error_bytes_strings = set()
+        self._not_found_error_bytes_strings = set()
+        self._access_denied_error_bytes_strings = set()
+
+        self._target_error_bytes_strings = set()
+        self._client_error_bytes_strings = set()
+        self._error_bytes_strings = set()
+
+    def _create_responce_bytes(self, bytes_string):
+        responce_bytes = Bytes(bytes_string)
+        if self._contains_strict:
+            responce_bytes.enable_contains_strict()
+        else:
+            responce_bytes.disable_contains_strict()
+        return responce_bytes
+
+    def enable_contains_strict(self):
+        self._responce_bytes.enable_contains_strict()
+
+    def disable_contains_strict(self):
+        self._responce_bytes.disable_contains_strict()
+
+    @property
+    def responce_bytes(self):
+        # Returns bytes or text from responce
+        return self._responce_bytes
+
+    def set_success_bytes_strings(self, bytes_strings):
+        self._success_bytes_strings = set(bytes_strings)
+
+    def set_failure_bytes_strings(self, bytes_strings):
+        self._failure_bytes_strings = set(bytes_strings)
+
+    def set_error_bytes_strings(self, bytes_strings):
+        self._error_bytes_strings = set(bytes_strings)
+
+
+    def set_wait_error_bytes_strings(self, bytes_strings):
+        self._wait_error_bytes_strings = set(bytes_strings)
+
+    def set_not_found_error_bytes_strings(self, bytes_strings):
+        self._not_found_error_bytes_strings = set(bytes_strings)
+
+    def set_access_denied_error_bytes_strings(self, bytes_strings):
+        self._access_denied_error_bytes_strings = set(bytes_strings)
+
+
+    def set_target_error_bytes_strings(self, bytes_strings):
+        self._target_error_bytes_strings = set(bytes_strings)
+
+    def set_client_error_bytes_strings(self, bytes_strings):
+        self._client_error_bytes_strings = set(bytes_strings)
+
+    def set_error_bytes_strings(self, bytes_strings):
+        self._error_bytes_strings = set(bytes_strings)
+
+
+
+    def contains_iteraror(self, bytes_iterator):
+        return self._responce_bytes.contains_iterator(bytes_iterator)
+
+    def success(self):
+        return self.contains_iteraror(self._success_bytes_strings)
+
+    def failure(self):
+        return self.contains_iteraror(self._failure_bytes_strings)
+
+    def wait_error(self):
+        return self.contains_iteraror(self._wait_error_bytes_strings)
+
+    def not_found_error(self):
+        return self.contains_iteraror(self._not_found_error_bytes_strings)
+
+    def access_denied_error(self):
+        return self.contains_iteraror(self._access_denied_error_bytes_strings)
+
+    def target_error(self):
+        return self.contains_iteraror(self._target_error_bytes_strings)
+
+    def client_error(self):
+        return self.contains_iteraror(self._client_error_bytes_strings)
+
+    def error(self):
+        errors_bool = [
+            self.wait_error(),
+            self.not_found_error(),
+            self.access_denied_error(),
+            self.target_error(),
+            self.client_error(),
+            self.contains_iteraror(self._error_bytes_strings)
+        ]
+        return any(errors_bool)
+    
+
+
+if __name__ == "__main__":
+    responce_bytes =  Bytes("responce in bytes")
+
+    responce_compare = BytesCompare(responce_bytes, True)
+    responce_compare.set_success_bytes_strings(["responce"])
+    responce_compare.set_error_bytes_strings(["responce"]) 
+
+    print(responce_compare.error())
