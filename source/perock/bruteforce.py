@@ -80,7 +80,7 @@ class BruteForceBase():
         self.optimise = optimise
 
         self.bforce = self._create_bforce_object(
-            self.target, self.table, not self.optimise
+            self.target, self.table, self.optimise
         )
 
     def __attack__init__(self, target, data):
@@ -109,7 +109,7 @@ class BruteForceBase():
     
     def set_max_parallel_tasks(self, total_tasks: int):
         '''Sets maximum number of tasks to run in parallel'''
-        self.bforce.set_total_tasks(total_tasks)
+        self.bforce.set_max_parallel_tasks(total_tasks)
 
     def set_max_workers(self, max_workers: int):
         '''Sets maximum workers to use to execute tasks in parallel'''

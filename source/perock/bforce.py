@@ -35,6 +35,8 @@ import logging
 import queue
 import threading
 import time
+import itertools
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -51,6 +53,8 @@ from .forcetable import Record
 from .forcetable import Table
 
 from . import forcetable
+
+from . import producer
 
 # Not used
 #from .session import BForceSession
@@ -71,10 +75,10 @@ class BForce():
     '''Performs attack on target with data from Table object(threaded)'''
     base_attack_class = Attack
 
-    def __init__(self, target, table:Table, loop_all=False) -> None:
-        self.target = target
+    def __init__(self, target, table:Table, optimise=True) -> None:
+        self._target = target
         self._table = table
-        self.loop_all = loop_all
+        self._optimise = optimise
         self._primary_field = table.get_primary_field()
         self._fields = table.get_fields()
 
@@ -101,23 +105,22 @@ class BForce():
         self._success_primary_items = set()
         self._success_records = []
 
-        # Stores producer methods and their names
-        self._producers_map: Dict[str, Callable]
-        self._producers_map = dict() # {'method_name': method}
-        # Set the current current producer name
-        if self.loop_all:
-            self._current_producer_name = 'loop_all'
-        else:
-            self._current_producer_name = 'loop_some'
-
-        # Adds default/startup producer methods to 
-        self._add_default_produsers()
 
         # Stores consumer tasks not yet completed
         self._current_tasks: Set[Future] = set()
 
         self.executor: Executor = None
         self.max_workers = None
+
+        # This sets maximum parallel primary items tasks
+        # e.g multiples usernames can be executed at same time.
+        self._max_parallel_primary_tasks = 5
+
+    def enable_optimise(self):
+        self._optimise = True
+
+    def disable_optimise(self):
+        self._optimise = False
 
     def set_executor(self, executor):
         # Sets executo to use e.g TheadPoolExecutor
@@ -146,7 +149,7 @@ class BForce():
         self.total_threads = total
         self.set_max_workers(total)
 
-    def set_total_tasks(self, total):
+    def set_max_parallel_tasks(self, total):
         self.total_tasks = total
 
 
@@ -224,52 +227,7 @@ class BForce():
         # Creates attack object with set attack class
         # .get_attack_class() will raise error if not found
         attack_class = self.get_attack_class()
-        return attack_class(self.target, data)
-
-    def should_put_record(self, record):
-        # Returns True if record should be put to queue
-        # logic to decide if record should be put to queque
-        if self._table.primary_field_exists():
-            return not forcetable.record_primary_included(
-                record, 
-                self._primary_field, 
-                self._success_primary_items
-            )
-        # Put all records to queue if primary field not detected
-        return True
-
-
-    def add_producer_method(self, name, method):
-        '''Adds producer method collection of producer methods'''
-        self._producers_map[name] = method
-
-    def get_producer_methods(self) -> List[Callable]:
-        '''Returns collection of producer methods'''
-        return list(self._producers_map.values())
-
-    def get_producer_method(self, producer_name) -> Callable:
-        '''Returns producer method from producer name'''
-        try:
-            return self._producers_map[producer_name]
-        except KeyError:
-            err_msg = f"Producer with name '{producer_name}' not found"
-            raise KeyError(err_msg)
-
-    def set_current_producer(self, producer_name):
-        '''Set current producer by its name'''
-        if producer_name in self._producers_map:
-            self._current_producer_name = producer_name
-        else:
-            err_msg = f"Producer with name '{producer_name}' not found"
-            raise KeyError(err_msg)
-
-    def get_current_producer(self):
-        '''Returns current producer name'''
-        return self._current_producer_name
-
-    def get_current_producer_method(self):
-        '''Returns current producer method'''
-        return self.get_producer_method(self._current_producer_name)
+        return attack_class(self._target, data)
 
     def _add_default_produsers(self):
         # Adds default/startup produser within object __init__()
@@ -284,13 +242,6 @@ class BForce():
                 queue_object.get(block=False)
             except queue.Empty:
                 break
-
-    def producer_should_switch(self, record):
-        if len(self._fields) == 1:
-            if self._success_records:
-                return True
-        else:
-            return not self.should_put_record(record)
 
 
     def _producer_loop_all(self):
@@ -312,12 +263,11 @@ class BForce():
         `self.should_put_record(record)` which should return True if record be
         put to tasks.
         '''
-        for record in self._table:
+        producer_ = producer.LoopAllProducer(self._table)
+        for record in producer_.get_items():
             if not self.producer_should_continue():
-                self.clear_queue(self.records_queue)
                 break
-            elif self.should_put_record(record):
-                self.records_queue.put(record)
+            yield record
 
     def _producer_loop_some(self):
         '''
@@ -345,21 +295,35 @@ class BForce():
         `self.should_put_record(record)` which should return True if record be
         put to tasks.
         '''
-        if self._table.primary_field_exists():
-            for records in self._table.records_primary_grouped():
-                for record in records:
-                    if not self.producer_should_continue():
-                        self.clear_queue(self.records_queue)
-                        return
-                    elif not self.producer_should_switch(record):
-                        self.records_queue.put(record)
-                    else:
-                        self.clear_queue(self.records_queue)
-                        break
-                        
+        producer_ = producer.LoopSomeProducer(self._table)
+        producer_.set_max_parallel_primary_tasks(
+            self._max_parallel_primary_tasks
+        )
+        # Get copy for tracking changes
+        success_primary_items = self._success_primary_items.copy()
+        for record in producer_.get_items():
+            if not self.producer_should_continue():
+                break
+            # Check if success primary items has changed
+            if success_primary_items != self._success_primary_items:
+                # Update copy for tracking changes
+                success_primary_items = self._success_primary_items.copy()
+                # Update excluded primary items with success primary items
+                producer_.set_excluded_primary_item(success_primary_items)
+            yield record
+
+    def get_current_producer_method(self):
+        if self._optimise:
+            producer_method = self._producer_loop_some
         else:
-            err_msg = f"Current producer requires primary field"
-            raise Exception(err_msg)
+            producer_method = self._producer_loop_all
+        return producer_method
+
+    def get_producer_records(self) -> Iterable[forcetable.Record]:
+        return self.get_current_producer_method()()
+
+    def set_max_parallel_primary_tasks(self, total):
+        self._max_parallel_primary_tasks = total
 
     def producer(self):
         '''
@@ -381,8 +345,9 @@ class BForce():
         '''
         # Error like missing primary key expected
         try:
-            # Gets and call current producer method
-            self.get_current_producer_method()()
+            records = self.get_producer_records()
+            for record in records:
+                self.records_queue.put(record)
         except Exception as e:
             # Raise original exception
             raise e
@@ -798,30 +763,11 @@ class BForceBlock(BForce):
         else:
             return not self.should_put_record(record)
 
-    def _producer_loop_some(self):
-        if self._table.primary_field_exists():
-            for records in self._table.records_primary_grouped():
-                for record in records:
-                    if not self.producer_should_continue():
-                        return
-                    elif not self.producer_should_switch(record):
-                        yield record
-                    else:
-                        break
-        else:
-            err_msg = "Table is missing primary field"
-            raise Exception(err_msg)
-    
-    def _producer_loop_all(self):
-        for record in self._table:
-            if not self.producer_should_continue():
-                break
-            elif self.should_put_record(record):
-                yield record
-
     def producer(self):
-        # Gets and call current producer method
-        return self.get_current_producer_method()()
+        # Get and return records from producers
+        for record in self.get_producer_records():
+            yield record
+        self.producer_done_callback()
 
     def producer_should_continue(self):
         return self.producer_should_run
@@ -838,6 +784,7 @@ class BForceBlock(BForce):
     def consumer(self):
         for record in self.producer():
             self.handle_attack(record)
+        self.producer_done_callback()
         self.consumer_done_callback()
 
     def start(self):

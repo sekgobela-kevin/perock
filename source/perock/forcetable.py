@@ -95,19 +95,20 @@ class Field():
 class FieldFile(Field):
     '''Class for creating field items from file in path''' 
     def __init__(self, name, path) -> None:
+        self._path = path
         self._file = open(path)
         super().__init__(name, self._read_file_lines_callable)
 
-    def read_file_lines(self, file_object: FileIO):
+    def read_file_lines(self):
         '''Reads lines from file in path, returns generator'''
-        for line in file_object:
+        for line in self._file:
             line_ = line.rstrip("\n")
             if line_:
                 yield line_
 
     def _read_file_lines_callable(self):
         self._file.seek(0)
-        return self.read_file_lines(self._file)
+        return self.read_file_lines()
 
     def __enter__(self):
         return self
@@ -155,18 +156,25 @@ class Record(dict):
 
 class Table():
     '''Represents table with data for performing attack'''
-    def __init__(self, fields=[]) -> None:
+    def __init__(self, fields=[], enable_callable_product=True) -> None:
         '''
         Creates table with data for performing attack.
         Parameters
         ----------
         fields: Iterator
             Iterator with Field objects
+        enable_callable_product: Bool
+            Enables cartesian product of field to be calculated differently
+            without use of itertools.product().
+            A different implementation of similar to that of itertools.product()
+            will be used which uses recursion and callable objects.
         '''
         # Stores records of table
         self.fields: Set[Field] = set(fields)
         # Stores record with items to be shared by all records
         self.common_record = Record()
+        # Enables use of callable product over itertools.product()
+        self.enable_callable_product = enable_callable_product
         # Stores records of table
         self.records: Set[Record] = set()
 
@@ -262,14 +270,28 @@ class Table():
 
 
     @classmethod
-    def fields_to_records(cls, fields, common_record=Record()):
+    def fields_to_records(cls, 
+    fields, 
+    common_record=Record(),
+    enable_callable_product=True):
         '''Returns records from fields'''
+        # Cast to list to maintain order of the fields
+        fields = list(fields)
         # Get fields item names(will act as keys)
         # 'item_name' is more suitable than 'name'(name of coulumn)
         field_names = [field.get_item_name(True) for field in fields]
-        # Get fields items(act as values)
-        fields_items = [field.get_items for field in fields]
-        # Use itertools.product() to get combination of values
+        if enable_callable_product:
+            # Appends callables into fields_items
+            # Different implementation will be used for cartesian product
+            fields_items = [field.get_items for field in fields]
+        else:
+            # Appends field items into fields_items
+            # itertools.product() will be used for cartesian product
+            fields_items = [field.get_items() for field in fields]
+        # product.product() is just wrapper around Product.product_callable()
+        # and itertools.product()
+        # product.product() will choose which to used based on fields_items
+        # If fields_items contain iterators then itertools.product()
         for fields_items in product.product(*fields_items):
             if not fields_items:
                 break
@@ -291,14 +313,24 @@ class Table():
         cls, 
         fields: Set[Field], 
         primary_field: Field, 
-        common_record=Record()):
-        if len(fields) >= 2:
-            primary_items = primary_field.get_items()
-            # other_fields needs to exclude primary field
-            other_fields = fields.copy()
-            other_fields.discard(primary_field)
-            # Loop each of primary field items
-            primary_grouped_records = []
+        common_record=Record(),
+        enable_callable_product=True):
+        primary_items = primary_field.get_items()
+        # other_fields needs to exclude primary field
+        other_fields = fields.copy()
+        other_fields.discard(primary_field)
+        # Loop each of primary field items
+        primary_grouped_records = []
+        if primary_field not in fields:
+            err_msg = "primary_field not in fields"
+            raise ValueError(err_msg)
+        if len(fields) == 1:
+            records = cls.fields_to_records(
+                fields, common_record, enable_callable_product
+            )
+            # All items of primary record are treated as group
+            primary_grouped_records.append(records)
+        else:
             for primary_item in primary_items:
                 # Creates field for primary field
                 # Name of field is taken from primary field
@@ -307,18 +339,19 @@ class Table():
                 # Merge the field with other fields
                 fields = other_fields.union([field])
                 # Creates records the fields
-                records =  cls.fields_to_records(fields, common_record)
+                records =  cls.fields_to_records(
+                    fields, common_record, enable_callable_product
+                )
                 primary_grouped_records.append(records)
-            return primary_grouped_records
-        else:
-            return [cls.fields_to_records(fields, common_record)]
+        return primary_grouped_records
 
     def records_primary_grouped(self):
         if self.primary_field_exists():
             return self.fields_to_records_primary_grouped(
                 self.fields,
                 self.primary_field,
-                self.common_record
+                self.common_record,
+                self.enable_callable_product
             )
         else:
             err_msg = "Primary field is needed, but not found"
@@ -334,7 +367,11 @@ class Table():
 
     def update_records(self):
         '''Updates table records to keep-up with fields'''
-        self.records = self.fields_to_records(self.fields, self.common_record)
+        self.records = self.fields_to_records(
+            self.fields, 
+            self.common_record,
+            self.enable_callable_product
+        )
 
     def update(self):
         '''Updates table including its records'''

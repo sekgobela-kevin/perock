@@ -77,7 +77,7 @@ class Runner():
             raise Exception(err_msg)
 
         bforce = self._bforce_class(
-            self._target, self._table, not self._optimise
+            self._target, self._table, self._optimise
         )
         bforce.set_attack_class(self._attack_class)
 
@@ -85,9 +85,9 @@ class Runner():
         # Its time to set some attributes on it
         # But should set them only when neccessay
         if self._max_workers != None:
-            bforce.set_max_workers(self.set_max_workers)
+            bforce.set_max_workers(self._max_workers)
         if self._max_parallel_tasks != None:
-            bforce.set_total_tasks(self._max_parallel_tasks)
+            bforce.set_max_parallel_tasks(self._max_parallel_tasks)
         if self._executor != None:
             bforce.set_executor(self._executor)
 
