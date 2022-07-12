@@ -41,11 +41,16 @@ class BForceCommonTest(CommonTest):
 
         self.setup_bforce_object()
 
+        self.bforce.set_max_parallel_primary_tasks(20)
+
         #attack = AttackSample(self.target, {"username":"THOMAS", "password":"marian"})
         #assert attack.success(), "Attack should be success"
 
     def setup_table(self):
-        self.table = Table()
+        # enable_callable_product=False
+        # Enables use of itertools.product() for cartesian product
+        # It should be True if max_parallel_primary_tasks > 1
+        self.table = Table(enable_callable_product=False)
         self.table.add_primary_field(self.usernames_field)
         self.table.add_field(self.passwords_field)
 
@@ -80,13 +85,13 @@ class BForceCommonTest(CommonTest):
 
 
 
-    def test_start_loop_all(self):
-        self.bforce.set_current_producer("loop_all")
+    def test_start_not_optimised(self):
+        self.bforce.disable_optimise()
         self.start()
         self.assertCountEqual(self.bforce.get_success_records(), self.accounts)
 
-    def test_start_loop_some(self):
-        self.bforce.set_current_producer("loop_some")
+    def test_start_optimised(self):
+        self.bforce.enable_optimise()
         self.start()
         self.assertCountEqual(self.bforce.get_success_records(), self.accounts)
 

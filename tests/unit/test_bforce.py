@@ -83,9 +83,9 @@ class TestBForceCommon(TestBForceSetUP):
         self.assertEqual(self.bforce.create_or_get_executor(), 
         self.process_executor)
 
-    def test_set_total_tasks(self):
+    def test_set_max_parallel_tasks(self):
         # Hard to test
-        pass
+        self.bforce.set_max_parallel_tasks(10)
 
 
     def test_create_session(self):
@@ -129,41 +129,15 @@ class TestBForceCommon(TestBForceSetUP):
             # bforce_raw does not hae attack class
             self.bforce_raw.create_attack_object(self.data)
 
-    def test_should_put_record(self):
-        # This method harder to test
-        # Its output depends on state of it object which can change
-        # Buts its expected to return True for now
-        self.assertTrue(self.bforce.should_put_record(self.dict_records[0]))
-
-
-    def test_add_producer_method(self):
-        self.bforce.add_producer_method("expo_producer", print)
-        self.assertIn(print, self.bforce.get_producer_methods())
-
-    def test_get_producer_methods(self):
-        self.bforce.add_producer_method("expo_producer", print)
-        self.assertIn(print, self.bforce.get_producer_methods())
-        # 3 producer methods expected, 2 internal and one just added.
-        self.assertEqual(len(self.bforce.get_producer_methods()), 3)
-
-    def test_get_producer_method(self):
-        self.bforce.add_producer_method("expo_producer", print)
-        producer_method = self.bforce.get_producer_method("expo_producer")
-        self.assertEqual(producer_method, print)
-
-    def test_set_current_producer(self):
-        self.bforce.add_producer_method("expo_producer", print)
-        self.bforce.set_current_producer("expo_producer")
-        self.assertEqual(self.bforce.get_current_producer(), "expo_producer")
-
-    def test_get_current_producer(self):
-        self.bforce.set_current_producer("loop_some")
-        self.assertEqual(self.bforce.get_current_producer(), "loop_some")
-
     def test_get_current_producer_method(self):
-        self.bforce.add_producer_method("expo_producer", print)
-        self.bforce.set_current_producer("expo_producer")
-        self.assertEqual(self.bforce.get_current_producer_method(), print)
+        self.assertTrue(callable(self.bforce.get_current_producer_method()))
+
+    def test_get_producer_records(self):
+        self.bforce.get_current_producer_method()()
+
+    def test_set_max_parallel_primary_tasks(self):
+        self.bforce.set_max_parallel_primary_tasks(10)
+
 
     def test_clear_queue(self):
         queue_object = queue.Queue(10)
