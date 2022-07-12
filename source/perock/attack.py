@@ -67,6 +67,11 @@ class AttackText(Attack, BytesCompare):
             return True
         return BytesCompare.target_error(self)
 
+    def errors(self) -> bool:
+        if super().errors():
+            return True
+        return BytesCompare.error(self)       
+
     def after_start_request(self):
         super().after_start_request()
         responce_content = self.responce_content()
@@ -121,6 +126,11 @@ class AttackTextAsync(AttackAsync, BytesCompare):
         if await super().client_errors():
             return True
         return BytesCompare.target_error(self)
+
+    async def errors(self) -> bool:
+        if await super().errors():
+            return True
+        return BytesCompare.error(self)   
 
     async def after_start_request(self):
         await super().after_start_request()
