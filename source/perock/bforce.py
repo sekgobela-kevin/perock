@@ -401,7 +401,7 @@ class BForce():
 
     def attack_error_callback(self, attack_object:Attack, record):
         # Callback called when theres error after attack attempt'''
-        logging.info(str(attack_object.get_responce()))
+        logging.info(attack_object.get_responce_message())
 
 
     def handle_attack_results(self, attack_object:Type[Attack], record):
@@ -415,8 +415,8 @@ class BForce():
         elif attack_object.success():
             self.attack_success_callback(attack_object, record)
         else:
-            err_msg = "Not sure if attack failed or was success"
-            raise Exception(err_msg, record)              
+            err_msg = "Something went wrong while handling attack results"
+            raise Exception(err_msg)          
             
 
 
@@ -454,6 +454,10 @@ class BForce():
         for task in self._current_tasks:
             task.cancel()
 
+    def cancel_consumer_producer(self):
+        self.cancel_producer()
+        self.cancel_consumer()
+
     def task_done_callback(self, future: Future):
         # Called when task completes
         self.semaphore.release()
@@ -464,9 +468,12 @@ class BForce():
             # Cancels producer and consumer and re-raise exception
             # Cancelling current tasks would result in CancelError
             # Its better to leave running tasks and let them finish.
-            self.cancel_producer()
-            self.cancel_consumer()
-            raise e
+            if not hasattr(self, "exception_200"):
+                # Exception will only be raised by once
+                # only when self.exception_200 is not defied
+                setattr(self, "exception_200", True)
+                self.cancel_consumer_producer()
+                raise e
 
 
 
@@ -651,16 +658,8 @@ class BForceAsync(BForce):
         elif await attack_object.success():
             self.attack_success_callback(attack_object, record)
         else:
-            err_msg = f'''
-            Not sure if attack failed or was success
-
-            Record: {record}
-            Target Reached: {attack_object.target_reached()}
-            Errors: {await attack_object.errors()}
-            Failed: {await attack_object.failure()}
-            Success: {await attack_object.success()}
-            '''
-            raise Exception(err_msg)            
+            err_msg = "Something went wrong while handling attack results"
+            raise Exception(err_msg)
 
     async def handle_attack(self, record: Record):
         #print("run async def handle_attack()")

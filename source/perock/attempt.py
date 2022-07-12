@@ -32,7 +32,7 @@ class Attempt():
     anything that requires certain credentials to access.
     This can include website or file requiring username and
     password to access.'''
-    unraised_exceptions_classes: Set[BaseException] = []
+    unraised_exceptions_classes: Set[BaseException] = set()
 
     def __init__(self, target, data:dict, retries=1) -> None:
         '''
@@ -48,6 +48,9 @@ class Attempt():
         # represents our responce
         self.responce = None
 
+    def get_responce_message(self):
+        return self.responce_msg
+
     def get_target(self):
         # Returns target to be used for attack
         return self.target
@@ -57,13 +60,13 @@ class Attempt():
         return self.data
 
     @classmethod
-    def _add_unraised_exception(cls, exception):
+    def add_unraised_exception(cls, exception):
         # Adds exception not to be raised on .request(self)
         cls.unraised_exceptions_classes.add(exception)
 
-    def _remove_unraised_exception(cls, exception):
+    def remove_unraised_exception(cls, exception):
         # Removes exception not to be raised on .request(self)
-        cls.unraised_exceptions_classes.remove(exception)
+        cls.unraised_exceptions_classes.discard(exception)
 
     @classmethod
     def _should_raise_exception(cls, exception):
@@ -160,6 +163,10 @@ class Attempt():
                 raise e
             else:
                 self.responce = e
+                self.responce_msg = str(e)
+        if self.responce == None:
+            err_msg = "responce cant be None"
+            raise Exception(err_msg)
         self.after_start_request()
         
 
@@ -226,8 +233,11 @@ class AttemptAsync(Attempt):
             if self._should_raise_exception(e):
                 raise e
             else:
-                print(self._should_raise_exception(e), self.unraised_exceptions_classes)
                 self.responce = e
+                self.responce_msg = str(e)
+        if self.responce == None:
+            err_msg = "responce cant be None"
+            raise Exception(err_msg)
         await self.after_start_request()
 
     async def close(self):

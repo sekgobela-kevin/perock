@@ -41,6 +41,29 @@ class Attack(Attempt, Check):
                 self.responce_msg = f"{main_err_msg}(fault 'Target')"
             elif self.client_errors():
                 self.responce_msg = f"{main_err_msg}(fault 'Client')"
+        elif self.isconfused():
+            self.confused_action()
+
+    def isconfused(self):
+        # Returns True the object is aware of state of responce
+        results = any([
+            self.errors(),
+            self.failure(),
+            self.success()
+        ])
+        return not results
+
+    async def confused_action(self):
+        err_msg = f'''
+        Not sure if attack failed or was success(confused)
+
+        Record/Data: {self.data}
+        Target Reached: {self.target_reached()}
+        Errors: {self.errors()}
+        Failed: {self.failure()}
+        Success: {self.success()}
+        '''
+        raise Exception(err_msg)   
 
 
 class AttackText(Attack, BytesCompare):
@@ -73,10 +96,11 @@ class AttackText(Attack, BytesCompare):
         return BytesCompare.error(self)       
 
     def after_start_request(self):
-        super().after_start_request()
+        # Careful of when to call super().after_start_request()
         responce_content = self.responce_content()
         responce_bytes = self._create_responce_bytes(responce_content)
         self._responce_bytes = responce_bytes
+        super().after_start_request()
 
 
 
@@ -100,6 +124,31 @@ class AttackAsync(AttemptAsync, CheckAsync):
                 self.responce_msg = f"{main_err_msg}(fault 'Target')"
             elif await self.client_errors():
                 self.responce_msg = f"{main_err_msg}(fault 'Client')"
+        elif await self.isconfused():
+            await self.confused_action()
+
+    async def isconfused(self):
+        # Returns True the object is aware of state of responce
+        results = any([
+            await self.errors(),
+            await self.failure(),
+            await self.success()
+        ])
+        return not results
+
+    async def confused_action(self):
+        err_msg = f'''
+        Not sure if attack failed or was success(confused)
+
+        Record/Data: {self.data}
+        Target Reached: {self.target_reached()}
+        Errors: {await self.errors()}
+        Failed: {await self.failure()}
+        Success: {await self.success()}
+        '''
+        raise Exception(err_msg)   
+
+    
 
 
 
@@ -133,9 +182,8 @@ class AttackTextAsync(AttackAsync, BytesCompare):
         return BytesCompare.error(self)   
 
     async def after_start_request(self):
-        await super().after_start_request()
+        # Careful of when to call super().after_start_request()
         responce_content = await self.responce_content()
         responce_bytes = self._create_responce_bytes(responce_content)
         self._responce_bytes = responce_bytes
-
-
+        await super().after_start_request()

@@ -15,6 +15,9 @@ Author: Sekgobela Kevin
 Date: July 2022
 Languages: Python 3
 '''
+from concurrent import futures
+from typing import Type
+
 from . import attack
 from . import bforce
 from . import forcetable
@@ -23,18 +26,19 @@ from . import forcetable
 class Runner():
     '''Runs bruteforce attack on target using threads'''
     def __init__(self, 
-    attack_class=attack.Attack, 
+    attack_class: Type[attack.Attack], 
     bforce_class=bforce.BForce) -> None:
         self._attack_class = attack_class
         self._bforce_class = bforce_class
 
         self._target = None
-        self._table = None
+        self._table: forcetable.Table = None
         self._optimise = True
 
-        self._max_parallel_tasks = None
-        self._max_workers = None
-        self._executor = None
+        self._max_parallel_tasks: int = None
+        self._max_parallel_primary_tasks: int = None
+        self._max_workers: int = None
+        self._executor: futures.Executor = None
 
     def set_target(self, target):
         '''Sets target/pointer to target to use for attack'''
@@ -68,6 +72,9 @@ class Runner():
         '''Sets executor to use to execute tasks'''
         self._executor = executor
 
+    def set_max_parallel_primary_tasks(self, total):
+        self._max_parallel_primary_tasks = total
+
     def _create_bforce_object(self):
         if self._target == None:
             err_msg = "Target is missing or None"
@@ -90,7 +97,10 @@ class Runner():
             bforce.set_max_parallel_tasks(self._max_parallel_tasks)
         if self._executor != None:
             bforce.set_executor(self._executor)
-
+        if self._max_parallel_primary_tasks != None:
+            bforce.set_max_parallel_primary_tasks(
+                self._max_parallel_primary_tasks
+            )
         return bforce
 
     def start(self):
@@ -105,7 +115,7 @@ class Runner():
 class RunnerAsync(Runner):
     '''Runs bruteforce attack on target using asyncio'''
     def __init__(self, 
-    attack_class=attack.AttackAsync, 
+    attack_class: Type[attack.AttackAsync], 
     bforce_class=bforce.BForceAsync) -> None:
         super().__init__(attack_class, bforce_class)
 
@@ -119,7 +129,7 @@ class RunnerAsync(Runner):
 class RunnerBlock(Runner):
     '''Runs bruteforce attack on target synchronously(blocking)'''
     def __init__(self, 
-    attack_class=attack.AttackAsync, 
+    attack_class: Type[attack.Attack], 
     bforce_class=bforce.BForceBlock) -> None:
         super().__init__(attack_class, bforce_class)
 
@@ -153,40 +163,30 @@ if __name__ == "__main__":
         def __init__(self, target, data: dict, retries=1) -> None:
             super().__init__(target, data, retries)
             self.set_sleep_time(1)
+            self.add_unraised_exception(Exception)
 
-        async def request(self):
-            self.ss
+        async def success(self):
+            return False
 
-
-        @staticmethod
-        async def create_session():
-            import random 
-            return "Session in string" + str(random.randint(0, 3000))
-
-
-        def success(self):
-            print(self.session)
-            return True
-
+        async def failure(self):
+            return False
+    
 
     class WebAttackClass(WebAttackAsync):
         def __init__(self, target, data: dict, retries=1) -> None:
             super().__init__(target, data, retries)
 
-        async def request(self):
-            super().request()
-
-        def success(self):
-            print(asyncio.wait([self.text]))
-            return self.target_reached()
+        async def success(self):
+            await self.target_reached()
 
         async def start(self):
-            super().start_request()
+            await super().start_request()
 
 
 
-    runner = RunnerAsync(WebAttackClass)
+    runner = RunnerAsync(AttackClass)
     runner.set_target('https://example.com')
     runner.set_table(table)
     runner.enable_optimise()
+    runner.set_max_parallel_tasks(10)
     asyncio.run(runner.run())

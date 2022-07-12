@@ -130,6 +130,12 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
             # Use existing session to improve performance
             # No need to close session as its reused(DONT)
             return await session.post(self.target, data=self.data)
+
+    async def target_errors(self):
+        return super().target_errors()
+
+    async def client_errors(self):
+        return super().client_errors()
                 
 
     @property

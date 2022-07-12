@@ -41,8 +41,12 @@ class SampleAttackText(AttackText):
         self.request_should_fail = False
 
         self.set_success_bytes_strings(["unlocked"])
-        self.set_failure_bytes_strings(["Failed to log"])
-        self.set_target_error_bytes_strings(["Our system"])
+        self.set_failure_bytes_strings([
+            "Failed to log", "account info"
+        ])
+        self.set_target_error_bytes_strings([
+            "Our system", "was denied", "errors"
+        ])
 
     def responce_content(self) -> str:
         if self.target_reached():
