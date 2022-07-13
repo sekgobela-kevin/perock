@@ -12,7 +12,7 @@ Date: June 2022
 Languages: Python 3
 '''
 from io import FileIO
-from typing import Iterator, Set
+from typing import Callable, Iterable, Iterator, Set
 
 from . import product
 from . import util
@@ -169,17 +169,21 @@ class Table():
             A different implementation of similar to that of itertools.product()
             will be used which uses recursion and callable objects.
         '''
-        # Stores records of table
+        # Stores fields of table
         self.fields: Set[Field] = set(fields)
         # Stores record with items to be shared by all records
         self.common_record = Record()
         # Enables use of callable product over itertools.product()
         self.enable_callable_product = enable_callable_product
         # Stores records of table
-        self.records: Set[Record] = set()
+        self.records: Iterator[Record] = iter([])
 
         self.primary_fields: Set[Field] = set()
         self.primary_field: Field = None
+
+        # Add fields to table
+        # 'self.fields: Set[Field] = set(fields)' is not enough
+        self.add_fields(self.fields)
 
     def set_primary_field(self, field):
         '''Set the field as primary field'''
@@ -200,11 +204,16 @@ class Table():
         self.fields.add(field)
         # Updates records to use the new field
 
+    def add_fields(self, fields):
+        '''Adds multiple field to table'''
+        for field in fields:
+            self.add_field(field)
+
     def add_primary_field(self, field):
         '''Add the field and make it one of primary fields'''
         self.primary_fields.add(field)
         self.set_primary_field(field)
-        self.add_field(field)
+        self.fields.add(field)
 
     def get_primary_fields(self):
         '''Returns primary field'''
@@ -218,19 +227,10 @@ class Table():
         '''Returns primary fields'''
         return self.fields
 
-    def add_record(self, record):
-        # Adds record to table
-        self.records.add(record)
-
-    def set_records(self, records):
-        # Sets records of table
-        self.records = records
-
     def get_records(self):
         '''Returns records of the table'''
-        if self.fields:
-            # Update records if there are fields in table
-            self.update()
+        # Update records before returning them
+        self.update()
         return self.records
 
 
@@ -329,20 +329,20 @@ class Table():
                 fields, common_record, enable_callable_product
             )
             # All items of primary record are treated as group
-            primary_grouped_records.append(records)
+            yield records
         else:
             for primary_item in primary_items:
                 # Creates field for primary field
                 # Name of field is taken from primary field
                 field = Field(primary_field.get_name(), [primary_item])
-                field.set_item_name(primary_field.get_item_name())
+                field.set_item_name(primary_field.get_item_name(True))
                 # Merge the field with other fields
                 fields = other_fields.union([field])
                 # Creates records the fields
                 records =  cls.fields_to_records(
                     fields, common_record, enable_callable_product
                 )
-                primary_grouped_records.append(records)
+                yield records
         return primary_grouped_records
 
     def records_primary_grouped(self):
@@ -363,6 +363,7 @@ class Table():
         
 
     def get_common_record(self):
+        '''Gets record to be merged with each record'''
         return self.common_record
 
     def update_records(self):
@@ -381,6 +382,86 @@ class Table():
     def __iter__(self) -> Iterator[Record]:
         return iter(self.get_records())
 
+
+class MapTable(Table):
+    '''Dynamically records based on primary field items'''
+    def __init__(self, fields=[], enable_callable_product=True) -> None:
+        super().__init__(fields, enable_callable_product)
+        self.fields_callable = None
+
+    def set_fields_callable(self, __callable: Callable):
+        self.fields_callable = __callable
+
+    # def primary_item_to_records(self, primary_item):
+    #     '''Creates records from primary item'''
+    #     if self.records_callable != None:
+    #         # Create records from provided callable
+    #         records =  self.records_callable(primary_item)
+    #     else:
+    #         # Creates field for primary field
+    #         # Name of field is taken from primary field
+    #         field = Field(self.primary_field.get_name(), [primary_item])
+    #         field.set_item_name(self.primary_field.get_item_name(True))
+    #         # Get all other field excluding primary fileld
+    #         other_fields = self.fields.difference([self.primary_field])
+    #         # Merge the field with other fields
+    #         fields = other_fields.union([field])
+    #         # Creates records the fields
+    #         records =  self.fields_to_records(
+    #             fields, self.common_record, self.enable_callable_product
+    #         )
+    #     return records
+
+    # def primary_item_to_records(self, primary_item) -> Iterator[Record]:
+    #     if self.records_callable != None:
+    #         # Call the prvided callable to get records from primary item
+    #         return self.records_callable(primary_item, self.common_record)
+    #     else:
+    #         # Return empty iterator if callable not provided
+    #         return iter([])
+
+    def primary_item_to_fields(self, primary_item) -> Iterator[Record]:
+        if self.fields_callable != None:
+            # Call the prvided callable to get records from primary item
+            return self.fields_callable(primary_item)
+        else:
+            # Return empty iterator if callable not provided
+            return iter([])
+
+    def records_primary_grouped(self):
+        if self.primary_field_exists():
+            primary_field_name = self.primary_field.get_name()
+            primary_field_item_name = self.primary_field.get_item_name(True)
+            for primary_item in self.primary_field.get_items():
+                # Get the fields to create records from
+                fields = set(self.primary_item_to_fields(primary_item))
+                # Primary field shouldnt be included(removed it)
+                fields.discard(self.primary_field)
+                # Uses table to convert the fields to records
+                table = Table(fields)
+                # Create field for representing item
+                item_field = Field(primary_field_name, [primary_item])
+                item_field.set_item_name(primary_field_item_name)
+                # Now add the field to the table
+                table.add_field(item_field)
+                # Provides table with common record
+                table.set_common_record(self.common_record)
+                # Return records from table created from the fields
+                yield table.get_records()
+        else:
+            err_msg = "Primary field is required, but not found"
+            raise Exception(err_msg)
+
+    def update_records(self):
+        '''Updates table records to keep-up with fields'''
+        # Update records only if there are fields in table
+        def records_callable():
+            # Flattens primary grouped records
+            for records in self.records_primary_grouped():
+                for record in records:
+                    yield record
+        # Updates update records with with generator function
+        self.records = records_callable()
 
 
 def get_record_primary_item(record, primary_field):

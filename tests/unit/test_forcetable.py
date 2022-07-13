@@ -3,6 +3,7 @@ import unittest
 from perock.forcetable import Record
 from perock.forcetable import Field
 from perock.forcetable import Table
+from perock.forcetable import MapTable
 
 from perock import forcetable 
 
@@ -95,17 +96,7 @@ class TestTableSetUp():
         self.passwords_field.set_item_name("password")
 
         # Creates Table object
-        self.table = Table()
-        # Set common record to be shared by all records
-        self.common_record = Record()
-        self.common_record.add_item("submit", "login")
-        self.table.set_common_record(self.common_record)
-        # Add fields to table
-        self.table.add_field(self.usernames_field)
-        self.table.add_field(self.passwords_field)
-
-        # Table object without Fields
-        self.empty_table = Table()
+        self.create_table_objects()
 
         self.dict_records = [
             {'password': '1234', 'submit': 'login', 'username': 'Marry'}, 
@@ -118,6 +109,20 @@ class TestTableSetUp():
             {'password': 'th234', 'submit': 'login', 'username': 'Bella'}, 
             {'password': 'th234', 'submit': 'login', 'username': 'Michael'}
         ]
+
+    def create_table_objects(self):
+        # Creates Table object
+        self.table = Table()
+        # Set common record to be shared by all records
+        self.common_record = Record()
+        self.common_record.add_item("submit", "login")
+        self.table.set_common_record(self.common_record)
+        # Add fields to table
+        self.table.add_field(self.usernames_field)
+        self.table.add_field(self.passwords_field)
+
+        # Table object without Fields
+        self.empty_table = Table()
 
 
 class TestTableCommon(TestTableSetUp):
@@ -225,6 +230,54 @@ class TestTableCommon(TestTableSetUp):
         # Hard to test(shouldnt be public method)
         pass
 
+class TestMapTableCommon(TestTableCommon):
+    @classmethod
+    def primary_item_to_records(
+            cls,
+            primary_item, 
+            primary_field, 
+            fields, 
+            common_record):
+        fields = set(fields)
+        field = Field(primary_field.get_name(), [primary_item])
+        field.set_item_name(primary_field.get_item_name(True))
+        # Get all other field excluding primary fileld
+        other_fields = fields.difference([primary_field])
+        # Merge the field with other fields
+        fields = other_fields.union([field])
+        # Create also table with records
+        table = Table(fields)
+        table.set_common_record(common_record)
+        return table
+    
+    def create_table_objects(self):
+        def fields_callable(primary_item):
+            # This is just for demostation
+            # It doesnt matter if primary column is included.
+            # primary column will be removed on after function call
+            return [self.passwords_field]
+        # Creates Table object
+        self.table = MapTable()
+        # Set common record to be shared by all records
+        self.common_record = Record()
+        self.common_record.add_item("submit", "login")
+        self.table.set_common_record(self.common_record)
+        # Add fields to table
+        self.table.add_field(self.usernames_field)
+        self.table.add_field(self.passwords_field)
+        self.table.set_fields_callable(fields_callable)
+
+        # Table object without Fields
+        self.empty_table = MapTable()
+
+    def test_get_records(self):
+        self.assertEqual(
+            len(list(self.table.get_records())), len(self.dict_records)
+        )
+        with self.assertRaises(Exception):
+            # Primary field is missing
+            self.assertCountEqual(self.empty_table.get_records(), [])
+
 
 class TestFunctions(unittest.TestCase):
     def setUp(self):
@@ -272,4 +325,7 @@ class TestField(TestFieldCommon, unittest.TestCase):
     pass
 
 class TestTable(TestTableCommon, unittest.TestCase):
+    pass
+
+class TestMapTable(TestMapTableCommon, unittest.TestCase):
     pass
