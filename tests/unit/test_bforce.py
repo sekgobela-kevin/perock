@@ -147,6 +147,11 @@ class TestBForceCommon(TestBForceSetUP):
         self.assertTrue(queue_object.empty())
 
 
+    def test_start(self):
+        # This is not a test but call to method
+        self.bforce.start()
+
+
 
 class TestBForceAsyncCommon(TestBForceCommon):
     bforce_class = BForceAsync
@@ -193,6 +198,10 @@ class TestBForceAsyncCommon(TestBForceCommon):
         # Same session be returned
         session = await self.bforce.get_session()
         self.assertEqual(await self.bforce.get_session(), session)
+
+    async def test_start(self):
+        # This is not a test but call to method
+        await self.bforce.start()
 
 
 class TestBForce(TestBForceCommon, unittest.TestCase):
