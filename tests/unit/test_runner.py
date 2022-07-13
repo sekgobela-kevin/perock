@@ -54,6 +54,15 @@ class TestRunnerCommon(TestRunnerSetUp):
     def test_enable_optimise(self):
         self.runner.enable_optimise()
 
+    def test_enable_cancel_immediately(self):
+        self.runner.enable_cancel_immediately()
+
+    def test_disable_cancel_immediately(self):
+        self.runner.disable_cancel_immediately()
+
+    def test_set_max_success_records(self):
+        self.runner.set_max_success_records(10)
+
     def test_disable_optimise(self):
         self.runner.disable_optimise()
 

@@ -33,11 +33,15 @@ class Runner():
 
         self._target = None
         self._table: forcetable.Table = None
+
         self._optimise = True
+        self._cancel_immediately = False
+        self._max_success_records: int = None
 
         self._max_parallel_tasks: int = None
         self._max_parallel_primary_tasks: int = None
         self._max_workers: int = None
+
         self._executor: futures.Executor = None
 
     def set_target(self, target):
@@ -59,6 +63,18 @@ class Runner():
     def disable_optimise(self):
         '''Disables optimisations(primary column not required)'''
         self._optimise = False
+
+    def enable_cancel_immediately(self):
+        '''Enables cancelling of tasks on first success'''
+        self._cancel_immediately = True
+
+    def disable_cancel_immediately(self):
+        '''Disables cancelling of tasks on first success'''
+        self._cancel_immediately = False
+
+    def set_max_success_records(self, total):
+        '''Sets maximum success records to cancel/stop attack'''
+        self._max_success_records = total
 
     def set_max_parallel_tasks(self, total_tasks: int):
         '''Sets maximum number of tasks to run in parallel'''
@@ -101,7 +117,20 @@ class Runner():
             bforce.set_max_parallel_primary_tasks(
                 self._max_parallel_primary_tasks
             )
+
+        # What should happen if _cancel_immediately and _max_success_records
+        # are being set?
+        # I guess _cancel_immediately imediately will take precidence.
+        # Disabling _cancel_immediately shouldnt clear _max_success_records
+        if self._cancel_immediately != None:
+            if self._cancel_immediately:
+                bforce.enable_cancel_immediately()
+            else:
+                bforce.disable_cancel_immediately()
+        if self._max_success_records != None:
+            bforce.set_max_success_records(self._max_success_records)
         return bforce
+
 
     def start(self):
         bforce_object = self._create_bforce_object()
@@ -166,7 +195,7 @@ if __name__ == "__main__":
             self.add_unraised_exception(Exception)
 
         async def success(self):
-            return False
+            return True
 
         async def failure(self):
             return False
@@ -187,6 +216,8 @@ if __name__ == "__main__":
     runner = RunnerAsync(AttackClass)
     runner.set_target('https://example.com')
     runner.set_table(table)
-    runner.enable_optimise()
-    runner.set_max_parallel_tasks(10)
+    runner.disable_optimise()
+    runner.enable_cancel_immediately()
+    runner.set_max_parallel_tasks(1000)
+    runner.set_max_parallel_primary_tasks(10)
     asyncio.run(runner.run())

@@ -82,6 +82,11 @@ class BForce():
         self._primary_field = table.get_primary_field()
         self._fields = table.get_fields()
 
+        # If True, pending tasks will be stopped on first success.
+        # producer and consumer will also be stopped.
+        self._cancel_immediately = False
+        self._max_success_records = None
+
         # Total independed tasks to run
         # Corresponds to requests that will be executed concurrently
         self.total_tasks = 500
@@ -121,6 +126,15 @@ class BForce():
 
     def disable_optimise(self):
         self._optimise = False
+
+    def enable_cancel_immediately(self):
+        self._cancel_immediately = True
+
+    def disable_cancel_immediately(self):
+        self._cancel_immediately = False
+
+    def set_max_success_records(self, total):
+        self._max_success_records = total
 
     def set_executor(self, executor):
         # Sets executo to use e.g TheadPoolExecutor
@@ -394,6 +408,20 @@ class BForce():
         with self._lock:
             self._success_records.append(record)
 
+        # Cancels consumer and producer on when max success records
+        # is reached.
+        if self._max_success_records != None:
+            # Not sure self._success_records will ever be larger
+            # self._max_success_records.
+            # Thats why '>=' was used as comparison operator.
+            if len(self._success_records) >= self._max_success_records:
+                # Cancels producer and consumer
+                self.cancel_consumer_producer()
+
+        # Cancels consumer and producer when _cancel_immediately is True
+        if self._cancel_immediately:
+            self.cancel_consumer_producer()
+
 
     def attack_failure_callback(self, attack_object, record):
         # Callback called when theres failure without error after attack attempt
@@ -455,8 +483,14 @@ class BForce():
             task.cancel()
 
     def cancel_consumer_producer(self):
+        # Cancel both consumer and producer
         self.cancel_producer()
         self.cancel_consumer()
+
+    def cancel(self):
+        # Cancels producer, consumer and tasks to executed
+        self.cancel_consumer_producer()
+        self.cancel_current_tasks()
 
     def task_done_callback(self, future: Future):
         # Called when task completes
@@ -580,8 +614,8 @@ class BForceAsync(BForce):
     '''Performs attack on target with data from Ftable object(asyncio)'''
     base_attack_class = AttackAsync 
 
-    def __init__(self, target, table, loop_all=False):
-        super().__init__(target, table, loop_all)
+    def __init__(self, target, table, optimise=False):
+        super().__init__(target, table, optimise)
         self._current_tasks: Set[asyncio.Task]
         self.attack_class: Type[AttackAsync]
 
@@ -752,8 +786,8 @@ class BForceAsync(BForce):
 
 
 class BForceBlock(BForce):
-    def __init__(self, target, table: Table, loop_all=False) -> None:
-        super().__init__(target, table, loop_all)
+    def __init__(self, target, table: Table, optimise=False) -> None:
+        super().__init__(target, table, optimise)
 
     def producer_should_switch(self, record):
         if len(self._fields) == 1:

@@ -64,6 +64,15 @@ class TestBForceSetUP(TestTableSetUp, TestAttemptSetUp):
 
 
 class TestBForceCommon(TestBForceSetUP):
+    def test_enable_cancel_immediately(self):
+        self.bforce.enable_cancel_immediately()
+
+    def test_disable_cancel_immediately(self):
+        self.bforce.disable_cancel_immediately()
+
+    def test_set_max_success_records(self):
+        self.bforce.set_max_success_records(10)
+
     def test_set_executor(self):
         self.bforce.set_executor(self.process_executor)
         self.assertEqual(self.bforce.get_executor(), self.process_executor)
