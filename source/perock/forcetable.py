@@ -80,15 +80,15 @@ class Field():
             raise Exception(err_msg)
 
     def set_primary(self):
-        # Sets the field as primary field
+        '''Sets the field as primary field'''
         self.primary = True
 
     def unset_primary(self):
-        # Unset field as primary field
+        '''Unset field as primary field'''
         self.primary = False
 
     def is_primary(self):
-        # Returns True if field is primary field
+        '''Returns True if field is primary field'''
         return self.primary
 
 
@@ -456,7 +456,7 @@ class MapTable(Table):
                 # Primary field shouldnt be included(removed it)
                 fields.discard(self.primary_field)
                 # Uses table to convert the fields to records
-                table = Table(fields)
+                table = Table(fields, self.enable_callable_product)
                 # Create field for representing item
                 item_field = Field(primary_field_name, [primary_item])
                 item_field.set_item_name(primary_field_item_name)
