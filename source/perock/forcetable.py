@@ -227,6 +227,22 @@ class Table():
         '''Returns primary fields'''
         return self.fields
 
+    def get_field_by_name(self, name):
+        '''Gets field by its name(raises exception if not found)'''
+        # It was better if map(dict) was used instead of set
+        for field in self.fields:
+            if field.get_name() == name:
+                return field
+        raise Exception(f"Field with name '{name}' not found")
+
+    def get_field_by_item_name(self, name, force=False):
+        '''Gets field by its item name(raises exception if not found)'''
+        # It was better if map(dict) was used instead of set
+        for field in self.fields:
+            if field.get_item_name(force) == name:
+                return field
+        raise Exception(f"Field with name '{name}' not found")
+
     def get_records(self):
         '''Returns records of the table'''
         # Update records before returning them
@@ -315,6 +331,7 @@ class Table():
         primary_field: Field, 
         common_record=Record(),
         enable_callable_product=True):
+        '''Returns records grouped by primary field items'''
         primary_items = primary_field.get_items()
         # other_fields needs to exclude primary field
         other_fields = fields.copy()
@@ -346,6 +363,7 @@ class Table():
         return primary_grouped_records
 
     def records_primary_grouped(self):
+        '''Returns records of table grouped by primary field items'''
         if self.primary_field_exists():
             return self.fields_to_records_primary_grouped(
                 self.fields,
@@ -354,7 +372,7 @@ class Table():
                 self.enable_callable_product
             )
         else:
-            err_msg = "Primary field is needed, but not found"
+            err_msg = "Primary field is required, but not found"
             raise Exception(err_msg)
 
     def set_common_record(self, record):

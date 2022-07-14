@@ -169,6 +169,23 @@ class TestTableCommon(TestTableSetUp):
         self.passwords_field])
         self.assertCountEqual(self.empty_table.get_fields(), [])
 
+    def test_get_field_by_name(self):
+        self.assertEqual(
+            self.table.get_field_by_name("usernames"),
+            self.usernames_field
+        )
+        with self.assertRaises(Exception):
+            # Theres no field with name 'username'
+            self.table.get_field_by_name("username")
+
+    def test_get_field_by_item_name(self):
+        self.assertEqual(
+            self.table.get_field_by_item_name("username"),
+            self.usernames_field
+        )
+        with self.assertRaises(Exception):
+            # Theres no field with item name 'usernames'
+            self.table.get_field_by_item_name("usernames")
 
     def test_get_records(self):
         self.assertCountEqual(self.table.get_records(), self.dict_records)
