@@ -53,7 +53,7 @@ class Attack(Attempt, Check):
         ])
         return not results
 
-    async def confused_action(self):
+    def confused_action(self):
         err_msg = f'''
         Not sure if attack failed or was success(confused)
 

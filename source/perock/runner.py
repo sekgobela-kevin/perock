@@ -43,6 +43,7 @@ class Runner():
         self._max_workers: int = None
 
         self._executor: futures.Executor = None
+        self._success_records = list()
 
     def set_target(self, target):
         '''Sets target/pointer to target to use for attack'''
@@ -89,7 +90,16 @@ class Runner():
         self._executor = executor
 
     def set_max_parallel_primary_tasks(self, total):
+        '''Set maxumum primary items to execute in parrallel'''
         self._max_parallel_primary_tasks = total
+
+    def get_success_records(self):
+        '''Returns records that were cracked/successful'''
+        return self._success_records
+
+    def get_cracked_records(self):
+        '''Returns records that were cracked/successful'''
+        return self.get_success_records()
 
     def _create_bforce_object(self):
         if self._target == None:
@@ -131,10 +141,15 @@ class Runner():
             bforce.set_max_success_records(self._max_success_records)
         return bforce
 
+    def _after_start(self, bforce: bforce.BForce):
+        # Method called after self.start() completes
+        self._success_records = bforce.get_success_records()
+
 
     def start(self):
         bforce_object = self._create_bforce_object()
         bforce_object.start()
+        self._after_start(bforce_object)
 
     def run(self):
         '''Entry point to starting attack on target'''
@@ -151,6 +166,7 @@ class RunnerAsync(Runner):
     async def start(self):
         bforce_object = self._create_bforce_object()
         await bforce_object.start()
+        self._after_start(bforce_object)
 
     async def run(self):
         await self.start()

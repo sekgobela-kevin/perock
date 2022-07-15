@@ -76,6 +76,12 @@ class TestRunnerCommon(TestRunnerSetUp):
         self.runner.set_max_workers(self.thread_executor)
         self.runner.set_max_workers(self.process_executor)
 
+    def test_get_success_records(self):
+        self.runner.get_success_records()
+
+    def test_get_cracked_records(self):
+        self.runner.get_cracked_records()
+
     def test_set_max_parallel_primary_tasks(self):
         self.runner.set_max_parallel_primary_tasks(10)
 
