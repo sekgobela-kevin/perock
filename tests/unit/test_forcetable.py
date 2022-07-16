@@ -3,7 +3,7 @@ import unittest
 from perock.forcetable import Record
 from perock.forcetable import Field
 from perock.forcetable import Table
-from perock.forcetable import MapTable
+from perock.forcetable import PrimaryTable
 
 from perock import forcetable 
 
@@ -247,7 +247,7 @@ class TestTableCommon(TestTableSetUp):
         # Hard to test(shouldnt be public method)
         pass
 
-class TestMapTableCommon(TestTableCommon):
+class TestPrimaryTableCommon(TestTableCommon):
     @classmethod
     def primary_item_to_records(
             cls,
@@ -274,7 +274,7 @@ class TestMapTableCommon(TestTableCommon):
             # primary column will be removed on after function call
             return [self.passwords_field]
         # Creates Table object
-        self.table = MapTable()
+        self.table = PrimaryTable()
         # Set common record to be shared by all records
         self.common_record = Record()
         self.common_record.add_item("submit", "login")
@@ -285,7 +285,7 @@ class TestMapTableCommon(TestTableCommon):
         self.table.set_fields_callable(fields_callable)
 
         # Table object without Fields
-        self.empty_table = MapTable()
+        self.empty_table = PrimaryTable()
 
     def test_get_records(self):
         self.assertEqual(
@@ -296,21 +296,12 @@ class TestMapTableCommon(TestTableCommon):
             self.assertCountEqual(self.empty_table.get_records(), [])
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(TestTableSetUp, unittest.TestCase):
     def setUp(self):
-        # Column items
-        self.usernames = ["Marry", "Bella", "Michael"]
-        self.passwords = ["1234", "0000", "th234"]
-
-        # Creates fields for table
-        self.usernames_field = Field('usernames', self.usernames)
-        self.usernames_field.set_primary()
-        # Sets key name to use in record key in Table
-        self.usernames_field.set_item_name("username")
-        self.passwords_field = Field('passwords', self.passwords)
-        self.passwords_field.set_item_name("password")
+        super().setUp()
 
         self.fields = [self.usernames_field, self.passwords_field]
+        self.records = list(self.table.get_records())
 
         self.record = Record({'password': '1234', 'submit': 'login', 'username': 'Bella'})
         self.record2 = Record({'password': 'th234', 'submit': 'login', 'username': 'Marry'})
@@ -332,6 +323,32 @@ class TestFunctions(unittest.TestCase):
         self.usernames_field, self.passwords_field.get_items())
         self.assertFalse(is_included)
 
+    def test_records_to_item_names_map(self):
+        item_names_map = forcetable.records_to_item_names_map(self.records)
+        self.assertCountEqual(
+            set(item_names_map["username"]), set(self.usernames)
+        )
+        self.assertCountEqual(
+            set(item_names_map["password"]), set(self.passwords)
+        )
+
+    def test_records_to_fields(self):
+        fields = forcetable.records_to_fields(self.records, self.common_record)
+        self.assertEqual(len(list(fields)), 2)
+        fields = forcetable.records_to_fields(self.records)
+        self.assertEqual(len(list(fields)), 3)
+
+    def test_records_to_table(self):
+        records = forcetable.records_to_table(self.records)
+        self.assertCountEqual(records, self.records)
+        records =  forcetable.records_to_table(
+            self.records,
+            "usernames", 
+            {"username": "usernames", "passwords": "passwords"}
+        )
+        self.assertCountEqual(records, self.records)
+
+
 
 
 class TestRecord(TestRecordCommon, unittest.TestCase):
@@ -344,5 +361,5 @@ class TestField(TestFieldCommon, unittest.TestCase):
 class TestTable(TestTableCommon, unittest.TestCase):
     pass
 
-class TestMapTable(TestMapTableCommon, unittest.TestCase):
+class TestPrimaryTable(TestPrimaryTableCommon, unittest.TestCase):
     pass

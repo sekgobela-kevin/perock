@@ -12,7 +12,7 @@ Date: June 2022
 Languages: Python 3
 '''
 from io import FileIO
-from typing import Callable, Iterable, Iterator, Set
+from typing import Callable, Dict, Iterable, Iterator, List, Set
 
 from . import product
 from . import util
@@ -401,7 +401,7 @@ class Table():
         return iter(self.get_records())
 
 
-class MapTable(Table):
+class PrimaryTable(Table):
     '''Dynamically records based on primary field items'''
     def __init__(self, fields=[], enable_callable_product=True) -> None:
         super().__init__(fields, enable_callable_product)
@@ -482,6 +482,23 @@ class MapTable(Table):
         self.records = records_callable()
 
 
+
+class RecordsTable(Table):
+    '''Table class that allows setting of records'''
+    def __init__(self, records=[]) -> None:
+        '''Creates RecordsTable instance'''
+        super().__init__()
+        self.set_records(records)
+
+    def update_records(self):
+        # No need to update records as fields are not to be used.
+        pass
+
+    def set_records(self, records: Iterator[Record]):
+        self.records = records
+
+
+
 def get_record_primary_item(record, primary_field):
     '''Returns primary item from record'''
     field_name = primary_field.get_item_name(True)
@@ -496,7 +513,61 @@ def record_primary_included(record, primary_field, primary_field_items):
     return primary_item in primary_field_items
 
 
+def records_to_item_names_map(
+    records: Iterator[Record], 
+    unique=False):
+    # Returns dictionary with item names and iterators
+    item_names_map: Dict[str, List] = {}
+    for record in records:
+        for name, value in record.items():
+            item_names_map[name] = item_names_map.get(name, [])
+            if unique and value in item_names_map[name]:
+                continue
+            item_names_map[name].append(value)
+    # Dict["item names": "Iterator"]
+    return item_names_map
 
+
+def records_to_fields(
+    records: Iterator[Record], 
+    common_record: Record = Record(),
+    fields_names_map={}, 
+    unique=False):
+    # Returns fields from records
+    # fields_names_map: Dict["item_name", "field_name"]
+    fields: List[Field] = []
+    item_names_map = records_to_item_names_map(records, unique=unique)
+    for item_name, items in item_names_map.items():
+        if item_name not in common_record:
+            field_name = fields_names_map.get(item_name, item_name)
+            field = Field(field_name, items)
+            field.set_item_name(item_name)
+            fields.append(field)
+    return fields
+
+            
+
+
+
+def records_to_table( 
+    records: Iterator[Record], 
+    primary_field_name=None,
+    fields_names_map={}):
+    # Returns Table object from iterator of records
+    # fields_names_map: Dict["item_name", "field_name"]
+    if primary_field_name == None:
+        return RecordsTable(records)
+    else:
+        fields = records_to_fields(
+            records, 
+            fields_names_map=fields_names_map,
+            unique=True
+        )
+        table = Table(fields)
+        primary_field = table.get_field_by_name(primary_field_name)
+        table.set_primary_field(primary_field)
+        return table
+    
 
 
 if __name__ == "__main__":
@@ -520,4 +591,6 @@ if __name__ == "__main__":
     table.add_field(passwords_col)
     # print the records with common record
     # Realise that the keys match ones set by set_item_name()
-    print(list(table))
+    #print(list(table))
+
+    print(list(records_to_table(table, "usernames", {"username": "usernames"})) == list(table))
