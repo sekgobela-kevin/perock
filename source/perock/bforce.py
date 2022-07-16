@@ -434,7 +434,7 @@ class BForce():
 
     def handle_attack_results(self, attack_object:Type[Attack], record):
         # Handles results of attack on attack object
-        # start_request() was already called and finished
+        # start() was already called and finished
         # responce can be accessed with self.responce
         if attack_object.errors():
             self.attack_error_callback(attack_object, record)
@@ -450,7 +450,7 @@ class BForce():
 
     def handle_attack(self, record):
         # Handles attack on thread
-        # Use it only on threads as .start_request() would block
+        # Use it only on threads as .start() would block
         # This method can be passed to thread pool executor
         session = self.get_session() # get session for this thread
         with self.create_attack_object(record) as attack_object:
@@ -459,7 +459,7 @@ class BForce():
                 # attack object should use the session during request
                 attack_object.set_session(session)
             # start the request(can take some time)
-            attack_object.start_request()
+            attack_object.start()
             # handles results of the request
             self.handle_attack_results(attack_object, record)
 
@@ -683,7 +683,7 @@ class BForceAsync(BForce):
         attack_object: AttackAsync, 
         record: Record):
         # Handles results of attack on attack object
-        # start_request() was already called and finished
+        # start() was already called and finished
         # responce can be accessed with self.responce
         if await attack_object.errors():
             self.attack_error_callback(attack_object, record)
@@ -704,8 +704,8 @@ class BForceAsync(BForce):
             if session != None:
                 # this line can speed request performance
                 attack_object.set_session(session)
-            # .start_request() needs to be coroutine method
-            await attack_object.start_request()
+            # .start() needs to be coroutine method
+            await attack_object.start()
             await self.handle_attack_results(attack_object, record)
 
     async def handle_attacks(self, table: Iterable[Type[Record]]):
@@ -811,7 +811,7 @@ class BForceBlock(BForce):
     def handle_attack(self, record):
         attack_object = self.create_attack_object(record)
         # Start a request with target
-        attack_object.start_request()
+        attack_object.start()
         self.handle_attack_results(attack_object, record)
 
     def consumer(self):

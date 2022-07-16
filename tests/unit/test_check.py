@@ -21,6 +21,12 @@ class CheckSample(Check):
         if not self.errors():
             return "unlocked" in responce.get_message()
 
+    def failure(self):
+        responce = self._attempt_object.get_responce()
+        if self.target_reached():
+            if not self.errors():
+                return "Failed to log" in responce.get_message()
+        return False
 
 class CheckSampleAsync(CheckAsync):
     def __init__(self, attempt_object) -> None:
@@ -32,11 +38,18 @@ class CheckSampleAsync(CheckAsync):
         if not await self.errors():
             return "unlocked" in responce.get_message()
 
+    async def failure(self):
+        responce = self._attempt_object.get_responce()
+        if await self.target_reached():
+            if not await self.errors():
+                return "Failed to log" in responce.get_message()
+        return False
+
 class TestCheckCommon(TestAttemptSetUp):
     def setUp(self):
         super().setUp()
         self.create_check_objects()
-        self.check_start_request()
+        self.check_start()
 
 
     def create_check_objects(self):
@@ -46,17 +59,26 @@ class TestCheckCommon(TestAttemptSetUp):
         self.check2 = CheckSample(self.attempt2)
         self.check3 = CheckSample(self.attempt3)
 
-    def check_start_request(self):
-        # Calls .start_request() of Attack objects
-        # self.attack.start_request() would cause problems
+    def check_start(self):
+        # Calls .start() of Attack objects
+        # self.attack.start() would cause problems
         # if this class is inherited.
-        self.check.get_attempt_object().start_request()
-        self.check2.get_attempt_object().start_request()
+        self.check.get_attempt_object().start()
+        self.check2.get_attempt_object().start()
         self.check3.get_attempt_object().request_should_fail = True
-        self.check3.get_attempt_object().start_request()
+        self.check3.get_attempt_object().start()
 
     def test_get_attempt_object(self):
         self.assertEqual(self.check.get_attempt_object(), self.attempt)
+
+    def test_request_failed(self):
+        self.assertFalse(self.check.request_failed())
+        self.assertTrue(self.check3.request_failed())
+
+
+    def test_target_reached(self):
+        self.assertTrue(self.check.target_reached())
+        self.assertFalse(self.check3.target_reached())
 
     def test_success(self):
         self.assertTrue(self.check.success())
@@ -68,7 +90,7 @@ class TestCheckCommon(TestAttemptSetUp):
 
         
     def test_target_errors(self):
-        self.assertEqual(self.check.target_errors(), None)
+        self.assertFalse(self.check.target_errors())
 
     def test_client_errors(self):
         self.assertFalse(self.check.client_errors())
@@ -88,7 +110,7 @@ class TestCheckAsyncCommon(TestAttemptSetUpAsync):
     def setUp(self):
         super().setUp()
         self.create_check_objects()
-        asyncio.run(self.check_start_request())
+        asyncio.run(self.check_start())
 
     def create_check_objects(self):
         # Initialises Check objects
@@ -101,22 +123,32 @@ class TestCheckAsyncCommon(TestAttemptSetUpAsync):
         # This class may be reused by tests for AttackAsync class.
         self.create_attempt_objects()
 
-    async def check_start_request(self):
-        # Calls .start_request() of Attack objects
-        # self.attack.start_request() would cause problems
+    async def check_start(self):
+        # Calls .start() of Attack objects
+        # self.attack.start() would cause problems
         # if this class is inherited.
         attempt_obj = self.check.get_attempt_object()
-        await attempt_obj.start_request()
+        await attempt_obj.start()
 
         attempt_obj = self.check2.get_attempt_object()
-        await attempt_obj.start_request()
+        await attempt_obj.start()
 
         attempt_obj = self.check3.get_attempt_object()
         attempt_obj.request_should_fail = True
-        await attempt_obj.start_request()
+        await attempt_obj.start()
 
     def test_get_attempt_object(self):
         self.assertIsInstance(self.check.get_attempt_object(), AttemptAsync)
+
+    async def test_request_failed(self):
+        self.assertFalse(self.check.request_failed())
+        self.assertTrue(self.check3.request_failed())
+
+
+    async def test_target_reached(self):
+        self.assertTrue(await self.check.target_reached())
+        self.assertFalse(await self.check3.target_reached())
+
 
     async def test_success(self):
         self.assertTrue(await self.check.success())
@@ -127,7 +159,7 @@ class TestCheckAsyncCommon(TestAttemptSetUpAsync):
         self.assertTrue(await self.check2.failure())
         
     async def test_target_errors(self):
-        self.assertEqual(await self.check.target_errors(), None)
+        self.assertFalse(await self.check.target_errors())
 
     async def test_client_errors(self):
         self.assertFalse(await self.check.client_errors())

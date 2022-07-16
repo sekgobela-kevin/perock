@@ -26,8 +26,16 @@ class SampleAttack(Attack):
             return Exception()
 
     def success(self):
-        if not self.errors():
-            return "unlocked" in self.responce.get_message()
+        if self.target_reached():
+            if not self.errors():
+                return "unlocked" in self.responce.get_message()
+        return False
+
+    def failure(self):
+        if self.target_reached():
+            if not self.errors():
+                return "Failed to log" in self.responce.get_message()
+        return False
 
     def set_responce(self, responce):
         self.responce = responce
@@ -79,8 +87,15 @@ class SampleAttackAsync(AttackAsync):
             return Exception()
 
     async def success(self):
-        if not await self.errors():
+        if await self.target_reached() and not await self.errors():
             return "unlocked" in self.responce.get_message()
+        return False
+
+    async def failure(self):
+        if await self.target_reached():
+            if not await self.errors():
+                return "Failed to log" in self.responce.get_message()
+        return False
 
     def set_responce(self, responce):
         self.responce = responce
@@ -98,7 +113,7 @@ class SampleAttackTextAsync(AttackTextAsync):
         self.set_target_error_bytes_strings(["Our system"])
 
     async def responce_content(self) -> str:
-        if self.target_reached():
+        if await self.target_reached():
             return self.responce.get_message()
         else:
             return str(self.responce)
@@ -114,79 +129,88 @@ class SampleAttackTextAsync(AttackTextAsync):
         self.responce = responce
 
 
-class TestAttackCommon(TestAttemptCommon, TestCheckCommon):
-    def setUp(self):
-        super().setUp()
-        super(TestCheckCommon, self).setUp()
-        self.create_attack_objects()
+
+class CommonMethods():
+    attack_class = SampleAttack
 
     def create_attempt_objects(self):
         # Initialise attempt objects
         # Attack object is also attempt object(inheritance)
-        self.attempt = SampleAttack(self.target, self.data)
-        self.attempt2 = SampleAttack(self.target, self.data2)
-        self.attempt3 = SampleAttack(self.target, self.data3)
+        self.attempt = self.attack_class(self.target, self.data)
+        self.attempt2 = self.attack_class(self.target, self.data2)
+        self.attempt3 = self.attack_class(self.target, self.data3)
 
 
     def create_check_objects(self):
         # Initialise Check objects
         # Attack object is also Check object(inheritance)
-        self.check = SampleAttack(self.target, self.data)
-        self.check2 = SampleAttack(self.target, self.data2)
-        self.check3 = SampleAttack(self.target, self.data3)
+        self.check = self.attack_class(self.target, self.data)
+        self.check2 = self.attack_class(self.target, self.data2)
+        self.check3 = self.attack_class(self.target, self.data3)
 
 
     def create_attack_objects(self):
         # Initialises attack objects
-        self.attack = SampleAttack(self.target, self.data)
-        self.attack2 = SampleAttack(self.target, self.data2)
-        self.attack3 = SampleAttack(self.target, self.data3)
+        self.attack = self.attack_class(self.target, self.data)
+        self.attack2 = self.attack_class(self.target, self.data2)
+        self.attack3 = self.attack_class(self.target, self.data3)
 
-    def check_start_request(self):
-        # Calls .start_request() to Attempt object of Check object.
-        # Remember that Attack is subclass of Check.
-        # The objects are just Attack object in chech named variables.
-        self.check.start_request()
-        self.check2.start_request()
-        self.check3.request_should_fail = True
-        self.check3.start_request()
+
+class TestAttackCommon(
+    CommonMethods,TestAttemptCommon, TestCheckCommon):
+    attack_class = SampleAttack
+
+    def setUp(self):
+        TestAttemptCommon.setUp(self)
+        TestCheckCommon.setUp(self)
+        self.create_attack_objects()
 
     def test_get_attempt_object(self):
         # get_attempt_object() should return self
         # The method is not needed within Attack class
         self.assertEqual(self.attack.get_attempt_object(), self.attack)
 
+    def test_set_retries(self):
+        self.attempt.set_retries(2)
+
+    def test_set_retries_sleep_time(self):
+        self.attempt.set_retries_sleep_time(2)
+
+    def test_enable_request_until(self):
+        self.attempt.enable_request_until()
+
+    def test_disable_request_until(self):
+        self.attempt.disable_request_until()
+
+    def test_after_request(self):
+        #with self.assertRaises(Exception):
+        #self.attack.after_request()
+        pass
+
+    def test_isconfused(self):
+        self.attack.isconfused()
 
 class TestAttackTextCommon(TestAttackCommon):
-    def create_check_objects(self):
-        # Initialise Check objects
-        # Attack object is also Check object(inheritance)
-        self.check = SampleAttackText(self.target, self.data)
-        self.check2 = SampleAttackText(self.target, self.data2)
-        self.check3 = SampleAttackText(self.target, self.data3)
-
-    def test_target_errors(self):
-        self.assertFalse(self.check.target_errors())
+    attack_class = SampleAttackText
 
 
-class TestAttackAsyncCommon(TestAttemptAsyncCommon, TestCheckAsyncCommon):
-    pass
+class TestAttackAsyncCommon(
+    CommonMethods, TestAttemptAsyncCommon, TestCheckAsyncCommon):
+    attack_class = SampleAttackAsync
+
+    def setUp(self):
+        TestAttemptAsyncCommon.setUp(self)
+        TestCheckAsyncCommon.setUp(self)
+        self.create_attack_objects()
+
+    async def test_after_request(self):
+        #with self.assertRaises(Exception):
+        #    await self.attack.after_request()
+        pass
 
 
 class TestAttackTextAsyncCommon(TestAttackAsyncCommon):
-    def create_check_objects(self):
-        # Initialises Check objects
-        self.check = SampleAttackTextAsync(self.target, self.data)
-        self.check2 = SampleAttackTextAsync(self.target, self.data2)
-        self.check3 = SampleAttackTextAsync(self.target, self.data3)
-
-        # Create new attempt objects to avoid changing ones used by
-        # TestAttemptSetUpAsync.
-        # This class may be reused by tests for AttackAsync class.
-        self.create_attempt_objects()
-
-    async def test_target_errors(self):
-        self.assertFalse(await self.check.target_errors())
+    attack_class = SampleAttackTextAsync
 
 
 

@@ -133,29 +133,18 @@ class Attempt():
         err_msg = "request() method not implemented"
         raise NotImplementedError(err_msg)
 
-    def before_start_request(self):
-        # Called im,edeiately when start_request() is called
+    def before_request(self):
+        # Called im,edeiately when start() is called
         if not self.validate_data(self.data):
             err_msg = f"Data({self.data}) is not valid"
             err_msg2 = "check if the data is in right format"
             raise ValueError(err_msg, err_msg2)
 
-    def after_start_request(self):
-        # Called after start_request() completes
+    def after_request(self):
+        # Called after start() completes
         pass
 
-
-    def request_error(self):
-        '''Checks if request failed(exception was raised)'''
-        # Returns True if request failed
-        # request_error() is to simple
-        # Subclasses can implement it further
-        return isinstance(self.responce, Exception)
-
-    def start_request(self, retries=1):
-        '''Start a request and update internal attributes based on
-        returned responce'''
-        self.before_start_request()
+    def _start(self):
         try:
             self.responce =  self.request()
         except Exception as e:
@@ -167,17 +156,13 @@ class Attempt():
         if self.responce == None:
             err_msg = "responce cant be None"
             raise Exception(err_msg)
-        self.after_start_request()
-        
 
-    def target_reached(self):
-        '''Checks if target was reached. Target was reached
-        if target was able to receive request and return responce.'''
-        # Checks if target was reached
-        # This means the target responded
-        if self.responce == None:
-            return False
-        return not self.request_error()
+    def start(self, retries=1):
+        '''Start a request and update internal attributes based on
+        returned responce'''
+        self.before_request()
+        self._start()
+        self.after_request()
 
     def close(self):
         #self.close_session()
@@ -211,11 +196,11 @@ class AttemptAsync(Attempt):
         "Closes responce object"
         await try_close_async(self.responce)
 
-    async def before_start_request(self):
-        super().before_start_request()
+    async def before_request(self):
+        super().before_request()
 
-    async def after_start_request(self):
-        super().after_start_request()
+    async def after_request(self):
+        super().after_request()
 
     async def request(self):
         # Strictly should be async with await
@@ -223,10 +208,7 @@ class AttemptAsync(Attempt):
         err_msg = "request() method not implemented"
         raise NotImplementedError(err_msg)
 
-    async def start_request(self, retries=1):
-        '''Start a request and update internal attributes based on
-        returned responce'''
-        await self.before_start_request()
+    async def _start(self):
         try:
             self.responce =  await self.request()
         except Exception as e:
@@ -238,7 +220,14 @@ class AttemptAsync(Attempt):
         if self.responce == None:
             err_msg = "responce cant be None"
             raise Exception(err_msg)
-        await self.after_start_request()
+
+
+    async def start(self, retries=1):
+        '''Start a request and update internal attributes based on
+        returned responce'''
+        await self.before_request()
+        await self._start()
+        await self.after_request()
 
     async def close(self):
         #self.close_session()
@@ -274,8 +263,8 @@ if __name__ == "__main__":
     url = 'https://httpbin.org/get'
     data = {'key1': 'value1', 'key2': 'value2'}
     attempt_obj = WebLogAttempt(url, data)
-    attempt_obj.start_request()
-    print(attempt_obj.request_error)
-    print(attempt_obj.request_error_msg)
+    attempt_obj.start()
+    print(attempt_obj.request_failed)
+    print(attempt_obj.request_failed_msg)
     print(type(attempt_obj.text))
 

@@ -140,12 +140,12 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
 
     @property
     async def text(self):
-        if self.target_reached():
+        if await self.target_reached():
             return await self.responce.text()
 
     @property
     async def content(self):
-        if self.target_reached():
+        if await self.target_reached():
             return await self.responce.content()
 
 
@@ -198,8 +198,8 @@ if __name__ == "__main__":
     test_obj = WebAttackAsync(url, data)
     
 
-    asyncio.run(test_obj.start_request())
-    print("test_obj.request_error", test_obj.request_error())
+    asyncio.run(test_obj.start())
+    print("test_obj.request_failed", test_obj.request_failed())
     print("test_obj.errors()", test_obj.errors())
     print("test_obj.target_reached", test_obj.target_reached())
     print("test_obj.errors()", test_obj.errors())

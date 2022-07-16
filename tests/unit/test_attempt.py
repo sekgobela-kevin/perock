@@ -115,7 +115,7 @@ class TestAttemptCommon(TestAttemptSetUp):
         self.assertEqual(self.attempt.get_responce(), None)
         
         # Starts request
-        self.attempt.start_request()
+        self.attempt.start()
 
         # Gets responce messages fro responce objects
         responce_message = self.attempt.request().get_message()
@@ -134,41 +134,24 @@ class TestAttemptCommon(TestAttemptSetUp):
         self.assertIsInstance(responce, Exception)
 
 
-    def before_start_request(self):
+    def before_request(self):
         # Harder to test
+        self.attempt.after_request()
         pass
 
-    def test_after_start_request(self):
+    def test_after_request(self):
         # Harder to test
+        self.attempt.after_request()
         pass
 
-
-    def test_request_error(self):
-        self.assertFalse(self.attempt.request_error())
-        self.attempt.start_request()
-        self.assertFalse(self.attempt.request_error())
-        self.attempt.request_should_fail = True
-        self.attempt.start_request()
-        self.assertTrue(self.attempt.request_error())
-
-
-    def test_start_request(self):
-        self.attempt.start_request()
-        self.assertFalse(self.attempt.request_error())
-        self.assertTrue(self.attempt.target_reached())
+    def test_start(self):
+        self.attempt.start()
+        self.assertNotIsInstance(self.attempt.get_responce(), Exception)
 
         self.attempt.request_should_fail = True
-        self.attempt.start_request()
-        self.assertTrue(self.attempt.request_error())
-        self.assertFalse(self.attempt.target_reached())
+        self.attempt.start()
+        self.assertIsInstance(self.attempt.get_responce(), Exception)
 
-    def test_target_reached(self):
-        self.assertFalse(self.attempt.target_reached())
-        self.attempt.start_request()
-        self.assertTrue(self.attempt.target_reached())
-        self.attempt.request_should_fail = True
-        self.attempt.start_request()
-        self.assertFalse(self.attempt.target_reached())
 
 
 class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
@@ -186,20 +169,12 @@ class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
         await self.attempt.close_responce()
         self.assertTrue(self.responce.closed)
 
-    async def test_request_error(self):
-        self.assertFalse(self.attempt.request_error())
-        await self.attempt.start_request()
-        self.assertFalse(self.attempt.request_error())
-        self.attempt.request_should_fail = True
-        await self.attempt.start_request()
-        self.assertTrue(self.attempt.request_error())
-
     async def test_get_responce(self):
         # No responce as there was no request
         self.assertEqual(self.attempt.get_responce(), None)
         
         # Starts request
-        await self.attempt.start_request()
+        await self.attempt.start()
 
         # Gets responce messages fro responce objects
         responce = await self.attempt.request()
@@ -209,6 +184,13 @@ class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
 
         # Test if the responce message are equal
         self.assertEqual(responce_msg, responce2_msg)
+
+
+    async def before_request(self):
+        await self.attempt.after_request()
+
+    async def test_after_request(self):
+        await self.attempt.after_request()
 
     async def test_request(self):
         # Gets responce messages fro responce objects
@@ -222,27 +204,14 @@ class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
         responce = await self.attempt.request()
         self.assertIsInstance(responce, Exception)
 
-    async def test_start_request(self):
-        await self.attempt.start_request()
-        self.assertFalse(self.attempt.request_error())
-        self.assertTrue(self.attempt.target_reached())
+    async def test_start(self):
+        await self.attempt.start()
+        self.assertNotIsInstance(self.attempt.get_responce(), Exception)
 
         self.attempt.request_should_fail = True
-        await self.attempt.start_request()
-        self.assertTrue(self.attempt.request_error())
-        self.assertFalse(self.attempt.target_reached())
+        await self.attempt.start()
+        self.assertIsInstance(self.attempt.get_responce(), Exception)
 
-
-
-
-
-    async def test_target_reached(self):
-        self.assertFalse(self.attempt.target_reached())
-        await self.attempt.start_request()
-        self.assertTrue(self.attempt.target_reached())
-        self.attempt.request_should_fail = True
-        await self.attempt.start_request()
-        self.assertFalse(self.attempt.target_reached())
 
 
 class TestAttempt(TestAttemptCommon, unittest.TestCase):

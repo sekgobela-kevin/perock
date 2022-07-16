@@ -12,11 +12,34 @@ class Check():
     with given data.'''
     def __init__(self, attempt_object) -> None:
         self._attempt_object:Attempt = attempt_object
+        #self._responce = self._attempt_object.get_responce()
 
     def get_attempt_object(self):
         '''Returns Attempt class instance. Attempt object
         is the one with responce from attempting to log to target'''
         return self._attempt_object
+
+    def request_started(self) -> bool:
+        '''Returns True if request was ever started'''
+        responce = self._attempt_object.get_responce()
+        return responce != None
+
+
+    def request_failed(self):
+        '''Returns True if request failed(likely bacause of exception)'''
+        responce = self._attempt_object.get_responce()
+        return isinstance(responce, Exception)
+
+
+    def target_reached(self):
+        '''Checks if target was reached. Target was reached
+        if target was able to receive request and return responce.'''
+        if not self.request_started():
+            return False
+        elif self.request_failed():
+            return False
+        else:
+            return True
 
     def success(self):
         '''Returns True if data works for the system,
@@ -26,7 +49,7 @@ class Check():
         raise NotImplementedError
 
     def failure(self):
-        # Returns True if attempt to log to system failed
+        '''Returns True if attempt to log to system failed'''
         # It may be False because of errors or target not reached
         return not self.success()
 
@@ -35,14 +58,14 @@ class Check():
         # Checks if there were error on target side
         # There may be errors on target e.g 'server errors'
         #raise NotImplementedError
-        return None
+        return False
 
     def client_errors(self):
         '''Returns True if there were errors on client(our side)'''
         # Returns True if there were errors on client
         # This means request failed to even start
         # e.g 'Invalid url' or 'no internet connection'
-        return self._attempt_object.request_error()
+        return self.request_failed()
 
     def errors(self):
         '''Returns True if there errors(target or client)'''
@@ -52,15 +75,18 @@ class Check():
 
     def responce_errors(self):
         '''Returns True if responce from target has errors'''
-        if self._attempt_object.target_reached():
+        if self.target_reached():
             return self.errors()
-        return None
+        return False
 
 
 class CheckAsync(Check):
     def __init__(self, attempt_object) -> None:
         super().__init__(attempt_object)
 
+    async def target_reached(self):
+        return super().target_reached()
+    
     async def success(self):
         return super().success()
 
@@ -77,6 +103,7 @@ class CheckAsync(Check):
         return  await self.client_errors() or await self.target_errors()
 
     async def responce_errors(self):
-        if self._attempt_object.target_reached():
+        '''Returns True if responce from target has errors'''
+        if await self.target_reached():
             return await self.errors()
-        return None
+        return False

@@ -141,7 +141,7 @@ class Runner():
             bforce.set_max_success_records(self._max_success_records)
         return bforce
 
-    def _after_start(self, bforce: bforce.BForce):
+    def _after_request(self, bforce: bforce.BForce):
         # Method called after self.start() completes
         self._success_records = bforce.get_success_records()
 
@@ -149,7 +149,7 @@ class Runner():
     def start(self):
         bforce_object = self._create_bforce_object()
         bforce_object.start()
-        self._after_start(bforce_object)
+        self._after_request(bforce_object)
 
     def run(self):
         '''Entry point to starting attack on target'''
@@ -166,7 +166,7 @@ class RunnerAsync(Runner):
     async def start(self):
         bforce_object = self._create_bforce_object()
         await bforce_object.start()
-        self._after_start(bforce_object)
+        self._after_request(bforce_object)
 
     async def run(self):
         await self.start()
@@ -225,7 +225,7 @@ if __name__ == "__main__":
             await self.target_reached()
 
         async def start(self):
-            await super().start_request()
+            await super().start()
 
 
 

@@ -95,7 +95,7 @@ errors_data = []
 
 for data in bruteforce_data:
     attack_object = WebAttack(target, data)
-    attack_object.start_request()
+    attack_object.start()
     if attack_object.success():
         success_data.append(data)
     elif attack_object.failure():

@@ -80,7 +80,7 @@ if __name__ == "__main__":
     # Replace it if different on your machine.
     request_data = {"username": "ANDERSON", "password": "shuttle"}
     web_attack = WebAttack("http://127.0.0.1:5000/login", request_data)
-    web_attack.start_request()
+    web_attack.start()
 
     # If webapp is running
     # --------------------
