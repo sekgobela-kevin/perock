@@ -1,6 +1,6 @@
 import unittest
 
-from perock.forcetable import Record
+from perock.forcetable import Record, RecordsTable
 from perock.forcetable import Field
 from perock.forcetable import Table
 from perock.forcetable import PrimaryTable
@@ -296,6 +296,28 @@ class TestPrimaryTableCommon(TestTableCommon):
             self.assertCountEqual(self.empty_table.get_records(), [])
 
 
+class TestRecordsTableCommon(TestTableCommon):
+    def create_table_objects(self):
+        super().create_table_objects()
+        # Get records from previous table
+        records = self.table.get_records()
+
+        # Creates Table object
+        self.table = RecordsTable()
+        # Set records from the other table into this table
+        self.table.set_records(records)
+        # Set common record to be shared by all records
+        self.common_record = Record()
+        self.common_record.add_item("submit", "login")
+        self.table.set_common_record(self.common_record)
+        # Add fields to table
+        self.table.add_field(self.usernames_field)
+        self.table.add_field(self.passwords_field)
+
+        # Table object without Fields
+        self.empty_table = Table()
+
+
 class TestFunctions(TestTableSetUp, unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -344,7 +366,10 @@ class TestFunctions(TestTableSetUp, unittest.TestCase):
         records =  forcetable.records_to_table(
             self.records,
             "usernames", 
-            {"username": "usernames", "passwords": "passwords"}
+            fields_names_map = {
+                "username": "usernames", 
+                "passwords": "passwords"
+            }
         )
         self.assertCountEqual(records, self.records)
 
@@ -362,4 +387,7 @@ class TestTable(TestTableCommon, unittest.TestCase):
     pass
 
 class TestPrimaryTable(TestPrimaryTableCommon, unittest.TestCase):
+    pass
+
+class TestRecordsTable(TestRecordsTableCommon, unittest.TestCase):
     pass

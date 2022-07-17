@@ -11,8 +11,12 @@ Author: Sekgobela Kevin
 Date: June 2022
 Languages: Python 3
 '''
-from io import FileIO
-from typing import Callable, Dict, Iterable, Iterator, List, Set
+import io
+from typing import Any, Callable, Dict, Sequence
+from typing import Iterable, Iterator, List, Set
+
+import json
+import csv
 
 from . import product
 from . import util
@@ -107,6 +111,8 @@ class FieldFile(Field):
                 yield line_
 
     def _read_file_lines_callable(self):
+        # This line may cause data races
+        # File can be seeked before it can be read.
         self._file.seek(0)
         return self.read_file_lines()
 
@@ -276,13 +282,25 @@ class Table():
         # Using map has advantage of using [Record(dict_) for dict_ in dicts]
         # Map will save memory(uses iterators than just list)
         # 'dicts' can sometimes be large in Millions or Billions
-        return map(lambda dict_: Record(dict_), dicts)
+        def dict_to_record(__dict):
+            if not isinstance(__dict, dict):
+                err_msg = "Instance of type 'dict' expected, not " +\
+                     str(type(__dict))
+                raise TypeError(err_msg)
+            return Record(__dict)
+        return map(dict_to_record, dicts)
 
     @staticmethod
     def records_to_dicts(records):
         '''Returns iterable of dictionaries from iterable of records'''
         # This is not worth it as Record is instance of 'dict'
-        return map(lambda record: dict(record), records)
+        def record_to_dict(__dict):
+            if not isinstance(__dict, dict):
+                err_msg = "Instance of type 'dict' or 'Record' expected, " +\
+                     "not " + str(type(__dict))
+                raise TypeError(err_msg)
+            return Record(__dict)
+        return map(record_to_dict, records)
 
 
     @classmethod
@@ -492,10 +510,22 @@ class RecordsTable(Table):
 
     def update_records(self):
         # No need to update records as fields are not to be used.
-        pass
+        # But its worth it to add common record to each record.
+        def callback(record: Record):
+            # Its better to modify copy of record
+            record = record.copy()
+            record.update(self.common_record)
+            return record
+        self.records = map(callback, self.records)
 
     def set_records(self, records: Iterator[Record]):
         self.records = records
+        # Its better to update records when setting records
+        # than when getting records.
+        self.update_records()
+
+    def get_records(self):
+        return self.records
 
 
 
@@ -530,8 +560,8 @@ def records_to_item_names_map(
 
 def records_to_fields(
     records: Iterator[Record], 
-    common_record: Record = Record(),
-    fields_names_map={}, 
+    common_record=Record(),
+    fields_names_map: Dict[str, Any]={}, 
     unique=False):
     # Returns fields from records
     # fields_names_map: Dict["item_name", "field_name"]
@@ -545,29 +575,138 @@ def records_to_fields(
             fields.append(field)
     return fields
 
-            
+             
 
 
 
 def records_to_table( 
     records: Iterator[Record], 
     primary_field_name=None,
-    fields_names_map={}):
-    # Returns Table object from iterator of records
-    # fields_names_map: Dict["item_name", "field_name"]
+    common_record=Record(),
+    fields_names_map: Dict[str, Any]={}):
+    '''Returns Table object from iterator of records'''
+    #fields_names_map: Dict["item_name", "field_name"]
     if primary_field_name == None:
         return RecordsTable(records)
     else:
         fields = records_to_fields(
             records, 
             fields_names_map=fields_names_map,
+            common_record=common_record,
             unique=True
         )
         table = Table(fields)
         primary_field = table.get_field_by_name(primary_field_name)
         table.set_primary_field(primary_field)
         return table
-    
+
+def dicts_to_records(dicts: Iterator[Dict]):
+    '''Returns corresponding Records objects from dictionaries(dict)'''
+    return Table.dicts_to_records(dicts)
+
+def records_to_dicts(records: Iterator[Record]):
+    '''Returns corresponding 'dict' objects from Records objects'''
+    return Table.records_to_dicts(records)
+
+def dicts_to_table(
+    dicts: Iterator[Dict], 
+    primary_field_name=None,
+    common_dict = dict(),
+    fields_names_map: Dict[str, Any]={}):
+    '''Returns Table object from iterator of dictionaries(dict)'''
+    records = dicts_to_records(dicts)
+    common_record = Record(common_dict)
+    return records_to_table(
+        records,
+        primary_field_name=primary_field_name,
+        common_record=common_record,
+        fields_names_map=fields_names_map
+    )
+
+
+def json_to_table(
+    file_path,
+    primary_field_name=None,
+    fields_names_map: Dict[str, Any]={}):
+    '''Returns table object from json file'''
+    with open(file_path, mode='r') as f:
+        dicts = json.load(f)
+        return dicts_to_table(
+            dicts,
+            primary_field_name=primary_field_name,
+            fields_names_map=fields_names_map
+        )
+
+def csv_to_table_fp(
+    fp: io.FileIO,
+    primary_field_name=None,
+    fields_names_map: Dict[str, Any]={},
+    fieldnames: Sequence = None,
+    restkey=None, 
+    restval=None,
+    dialect=...,
+    delimiter: str = ",", 
+    quotechar: str = None, 
+    escapechar: str = None, 
+    doublequote: bool = ...,
+    lineterminator: str = "\n"
+    ):
+    '''Returns table object from csv file like object'''
+    reader = csv.DictReader(
+        fp,
+        fieldnames=fieldnames,
+        restkey=restkey,
+        restval=restval,
+        dialect=dialect,
+        delimiter=delimiter,
+        quotechar=quotechar,
+        escapechar=escapechar,
+        doublequote=doublequote,
+        lineterminator=lineterminator,
+    )
+    return dicts_to_table(
+        reader,
+        primary_field_name=primary_field_name,
+        fields_names_map=fields_names_map
+    )
+
+
+def csv_to_table(
+    path, 
+    primary_field_name=None,
+    fields_names_map: Dict[str, Any]={},
+    fieldnames: Sequence = None,
+    restkey=None, 
+    restval=None,
+    dialect=...,
+    delimiter: str = ",", 
+    quotechar: str = None, 
+    escapechar: str = None, 
+    doublequote: bool = ...,
+    lineterminator: str = "\n"):
+    '''Returns table object from csv file in path'''
+    # This function would read the whole csv into memory
+    # Use csv_to_table_fp() if you dont want read whole csv to memory.
+    with open(path) as fp:
+        reader = csv.DictReader(
+            fp,
+            fieldnames=fieldnames,
+            restkey=restkey,
+            restval=restval,
+            dialect=dialect,
+            delimiter=delimiter,
+            quotechar=quotechar,
+            escapechar=escapechar,
+            doublequote=doublequote,
+            lineterminator=lineterminator,
+        )
+        # list(reader) reads the whole csv into memory
+        return dicts_to_table(
+            list(reader),
+            primary_field_name=primary_field_name,
+            fields_names_map=fields_names_map
+        )
+
 
 
 if __name__ == "__main__":
@@ -591,6 +730,4 @@ if __name__ == "__main__":
     table.add_field(passwords_col)
     # print the records with common record
     # Realise that the keys match ones set by set_item_name()
-    #print(list(table))
-
-    print(list(records_to_table(table, "usernames", {"username": "usernames"})) == list(table))
+    print(list(table))

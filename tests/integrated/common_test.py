@@ -27,6 +27,11 @@ class CommonTest():
         cls.passwords_file_paths = cls.get_files(cls.passwords_folder)
         cls.usernames_file_paths = cls.get_files(cls.usernames_folder)
 
+        with open(cls.usernames_file_path) as usernames_file:
+            with open(cls.passwords_file_path) as passwords_file:
+                cls.usernames = [line.rstrip("\n") for line in usernames_file]
+                cls.passwords = [line.rstrip("\n") for line in passwords_file]
+
 
     @classmethod
     def get_files(cls, folder):
