@@ -808,6 +808,10 @@ class BForceBlock(BForce):
     def consumer_should_continue(self):
         return self.consumer_should_run
 
+    def cancel_producer(self):
+        # Requests producer to stop running
+        self.producer_should_run = False
+
     def handle_attack(self, record):
         attack_object = self.create_attack_object(record)
         # Start a request with target

@@ -1,5 +1,6 @@
 import unittest
 import asyncio
+from concurrent import futures
 
 from common_classes import AttackSample
 from common_classes import AttackAsyncSample
@@ -13,6 +14,22 @@ from perock.forcetable import FieldFile
 
 from perock import bforce
 from perock import target
+
+
+# Tests for this test module are based non IO blocking activity.
+# It involves bruteforce with passwords and usernames from file system.
+# Product of usernames and passwords is calculated.
+# Each username-password combination is campared with other defined 
+# username-password.
+
+# There is no waiting, so there is no IO blocking activity taking place.
+# BForceAsync and BForce are expected to perform slower than BForceBlock.
+# BForceAsync and BForce were designed for IO blocking activity and 
+# they will perform worst on CPU intensive activities.
+
+# Setting ProccessPoolExecutor is failing as seen in the tests.
+# BForceAsync and BForce will peform better on IO bound tasks such
+# as performing internet request.
 
 
 class BForceTestTarget(target.Target):
@@ -33,6 +50,10 @@ class BForceSetUp(CommonTest):
         cls.usernames_field.set_item_name("username")
         cls.passwords_field.set_item_name("password")
 
+        # Set executors
+        cls.process_executor = futures.ProcessPoolExecutor()
+        cls.thread_executor = futures.ThreadPoolExecutor()
+
     @classmethod
     def tearDownClass(cls):
         cls.usernames_field.close()
@@ -46,8 +67,6 @@ class BForceSetUp(CommonTest):
         self.setup_target()
 
         self.setup_bforce_object()
-
-        self.bforce.set_max_parallel_primary_tasks(20)
 
         #attack = AttackSample(self.target, {"username":"THOMAS", "password":"marian"})
         #assert attack.success(), "Attack should be success"
@@ -84,6 +103,7 @@ class BForceSetUp(CommonTest):
     def setup_bforce_object(self):
         self.bforce = bforce.BForce(self.target, self.table)
         self.bforce.set_attack_class(AttackSample)
+        self.bforce.set_max_parallel_primary_tasks(20)
 
     def start(self):
         # Calls .start() of bforce object
@@ -113,20 +133,26 @@ class BForceAsyncCommonTest(BForceCommonTest):
 
 
 
-class BForceBockCommonTest(BForceCommonTest):
+class BForceBlockCommonTest(BForceCommonTest):
+    def setup_bforce_object(self):
+        self.bforce = bforce.BForceBlock(self.target, self.table)
+        self.bforce.set_attack_class(AttackSample)
+
+class BForceAsyncCommonTest(BForceCommonTest):
     def setup_bforce_object(self):
         self.bforce = bforce.BForceBlock(self.target, self.table)
         self.bforce.set_attack_class(AttackSample)
 
 
 
-class BForceAsyncTest(BForceAsyncCommonTest, unittest.TestCase):
-    pass
 
 class BForceTest(BForceCommonTest, unittest.TestCase):
     pass
 
-class BForceBlockTest(BForceCommonTest, unittest.TestCase):
+class BForceAsyncTest(BForceAsyncCommonTest, unittest.TestCase):
+    pass
+
+class BForceBlockTest(BForceBlockCommonTest, unittest.TestCase):
     pass
 
 
