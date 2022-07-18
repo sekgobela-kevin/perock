@@ -67,15 +67,11 @@ from . import producer
 from .util import to_thread
 
 
-format = "%(asctime)s: %(message)s"
-logging.basicConfig(format=format, level=logging.INFO,
-                    datefmt="%H:%M:%S")
-
 class BForce():
     '''Performs attack on target with data from Table object(threaded)'''
     base_attack_class = Attack
 
-    def __init__(self, target, table:Table, optimise=True) -> None:
+    def __init__(self, target, table:Table, optimise=False) -> None:
         self._target = target
         self._table = table
         self._optimise = optimise
@@ -822,6 +818,9 @@ class BForceBlock(BForce):
         self.consumer()
 
         
+format = "%(asctime)s: %(message)s"
+logging.basicConfig(format=format, level=logging.INFO,datefmt="%H:%M:%S")
+
 
 if __name__ == "__main__":
     format = "%(asctime)s: %(message)s"
