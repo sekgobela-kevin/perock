@@ -1,6 +1,8 @@
 import unittest
+import asyncio
 
 from common_classes import AttackSample
+from common_classes import AttackAsyncSample
 from common_test import CommonTest
 
 from perock.target import Account
@@ -19,7 +21,7 @@ class BForceTestTarget(target.Target):
         #self.set_responce_time(1)
 
 
-class BForceCommonTest(CommonTest):
+class BForceSetUp(CommonTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -31,6 +33,10 @@ class BForceCommonTest(CommonTest):
         cls.usernames_field.set_item_name("username")
         cls.passwords_field.set_item_name("password")
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.usernames_field.close()
+        cls.passwords_field.close()
     
     def setUp(self):
         super().setUp()
@@ -84,7 +90,7 @@ class BForceCommonTest(CommonTest):
         self.bforce.start()
 
 
-
+class BForceCommonTest(BForceSetUp):
     def test_start_not_optimised(self):
         self.bforce.disable_optimise()
         self.start()
@@ -95,11 +101,35 @@ class BForceCommonTest(CommonTest):
         self.start()
         self.assertCountEqual(self.bforce.get_success_records(), self.accounts)
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.usernames_field.close()
-        cls.passwords_field.close()
-     
+
+
+class BForceAsyncCommonTest(BForceCommonTest):
+    def setup_bforce_object(self):
+        self.bforce = bforce.BForceAsync(self.target, self.table)
+        self.bforce.set_attack_class(AttackAsyncSample)
+
+    def start(self):
+        asyncio.run(self.bforce.start())
+
+
+
+class BForceBockCommonTest(BForceCommonTest):
+    def setup_bforce_object(self):
+        self.bforce = bforce.BForceBlock(self.target, self.table)
+        self.bforce.set_attack_class(AttackSample)
+
+
+
+class BForceAsyncTest(BForceAsyncCommonTest, unittest.TestCase):
+    pass
 
 class BForceTest(BForceCommonTest, unittest.TestCase):
     pass
+
+class BForceBlockTest(BForceCommonTest, unittest.TestCase):
+    pass
+
+
+
+if __name__ == '__main__':
+    unittest.main()
