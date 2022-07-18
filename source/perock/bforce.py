@@ -459,7 +459,7 @@ class BForce():
                 # attack object should use the session during request
                 attack_object.set_session(session)
             # start the request(can take some time)
-            attack_object.start()
+            attack_object.start_until_target_reached()
             # handles results of the request
             self.handle_attack_results(attack_object, record)
 
@@ -705,7 +705,7 @@ class BForceAsync(BForce):
                 # this line can speed request performance
                 attack_object.set_session(session)
             # .start() needs to be coroutine method
-            await attack_object.start()
+            await attack_object.start_until_target_reached()
             await self.handle_attack_results(attack_object, record)
 
     async def handle_attacks(self, table: Iterable[Type[Record]]):
@@ -811,12 +811,6 @@ class BForceBlock(BForce):
     def cancel_producer(self):
         # Requests producer to stop running
         self.producer_should_run = False
-
-    def handle_attack(self, record):
-        attack_object = self.create_attack_object(record)
-        # Start a request with target
-        attack_object.start()
-        self.handle_attack_results(attack_object, record)
 
     def consumer(self):
         for record in self.producer():

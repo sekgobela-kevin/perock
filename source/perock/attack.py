@@ -33,24 +33,14 @@ class Attack(Attempt, Check):
         # I hope this does not add performance overhead(but it works)
         self.base_check_class.__init__(self, self)
         self._retries = retries
+        self._tries = retries + 1
         self._retry_sleep_time = 0
-        self._retries_started = False
-
-        self._request_until = False
 
     def set_retries(self, retries):
         self._retries = retries
 
     def set_retries_sleep_time(self, seconds):
         self._retry_sleep_time = seconds
-
-    def enable_request_until(self):
-        # Enables requesting until target is reached
-        self._request_until = True
-
-    def disable_request_until(self):
-        # Enables requesting until target is reached
-        self._request_until = False
 
     def _validate_attack(self):
         target_reached = self.target_reached()
@@ -177,25 +167,28 @@ class Attack(Attempt, Check):
         raise Exception(err_msg)  
 
     def start_until_target_reached(self):
-        # Starts requests for retries until target is reached
+        # Starts requests infinitely until target is reached
         # No need to retry if running until
-        self._retries = 0
         while True:
             self.start()
             if self.target_reached():
                 break
             time.sleep(self._retry_sleep_time)
 
+    def start_for_tries(self):
+        # Starts requests for tries until target is reached
+        count = 0
+        while count < self._tries:
+            self.start()
+            if self.target_reached():
+                break
+            time.sleep(self._retry_sleep_time)
+            count += 1
+
+
     def target_not_reached_action(self):
         # Method called if target is not reached
-        # self._retries_started prevents recursion
-        if not self._retries_started:
-            self._retries_started = True
-            for _ in range(self._retries):
-                self.start()
-                if self.target_reached():
-                    break
-                time.sleep(self._retry_sleep_time)
+        pass
 
     def after_request(self):
         # Called after start() completes
@@ -204,14 +197,6 @@ class Attack(Attempt, Check):
         self._update_responce_message()
         if not self.target_reached():
             self.target_not_reached_action()
-
-    def start(self):
-        if self._request_until:
-            self._request_until = False
-            self.start_until_target_reached()
-            self._request_until = True
-        else:
-            super().start()
 
 
 
@@ -230,24 +215,12 @@ class AttackAsync(AttemptAsync, CheckAsync):
 
         self._retries = retries
         self._retry_sleep_time = 0
-        self._retries_started = False
-
-        self._request_until = False
 
     def set_retries(self, retries):
         self._retries = retries
 
     def set_retries_sleep_time(self, seconds):
         self._retry_sleep_time = seconds
-
-    def enable_request_until(self):
-        # Enables requesting until target is reached
-        self._request_until = True
-
-    def disable_request_until(self):
-        # Enables requesting until target is reached
-        self._request_until = False
-
 
     async def _validate_attack(self):
         target_reached = await self.target_reached()
@@ -386,25 +359,29 @@ class AttackAsync(AttemptAsync, CheckAsync):
 
 
     async def start_until_target_reached(self):
-        # Starts requests until target is reached
+        # Starts requests infinitely until target is reached
         # No need to retry if running until
-        self._retries = 0
         while True:
-            await self._start()
+            await self.start()
             if await self.target_reached():
                 break
             await asyncio.sleep(self._retry_sleep_time)
 
+    async def start_for_tries(self):
+        # Starts requests for tries until target is reached
+        count = 0
+        while count < self._tries:
+            await self.start()
+            if await self.target_reached():
+                break
+            await asyncio.sleep(self._retry_sleep_time)
+            count += 1
+
+
     async def target_not_reached_action(self):
         # Method called if target is not reached
-        # self._retries_started prevents recursion
-        if not self._retries_started:
-            self._retries_started = True
-            for _ in range(self._retries):
-                await self.start()
-                if await self.target_reached():
-                    break
-                time.sleep(self._retry_sleep_time)
+        pass
+
 
 
     async def after_request(self):
@@ -414,16 +391,6 @@ class AttackAsync(AttemptAsync, CheckAsync):
         await self._update_responce_message()
         if not await self.target_reached():
             await self.target_not_reached_action()
-
-
-    async def start(self):
-        if self._request_until:
-            self._request_until = False
-            await self.start_until_target_reached()
-            self._request_until = True
-        else:
-            await super().start()
-
 
 
 

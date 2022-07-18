@@ -176,12 +176,6 @@ class TestAttackCommon(
     def test_set_retries_sleep_time(self):
         self.attempt.set_retries_sleep_time(2)
 
-    def test_enable_request_until(self):
-        self.attempt.enable_request_until()
-
-    def test_disable_request_until(self):
-        self.attempt.disable_request_until()
-
     def test_after_request(self):
         #with self.assertRaises(Exception):
         #self.attack.after_request()
