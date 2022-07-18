@@ -1,10 +1,10 @@
 
 
 
-class Bytes():
+class ResponceBytes():
     '''Represents bytes from responce'''
     def __init__(self, __bytes=b""):
-        if isinstance(__bytes, Bytes):
+        if isinstance(__bytes, ResponceBytes):
             self._bytes = __bytes.get_bytes()
         else:
             self._bytes = self.to_bytes(__bytes)
@@ -93,7 +93,7 @@ class Bytes():
 
 
 
-class Compare():
+class ResponceAnalyserBase():
     '''Compares responce with other objects'''
     def __init__(self, responce, other) -> None:
         self._responce = responce
@@ -124,12 +124,12 @@ class Compare():
         raise NotImplementedError
 
 
-class BytesCompare(Compare):
+class ResponceBytesAnalyser(ResponceAnalyserBase):
     '''Compares bytes of responce with other bytes'''
     def __init__(self, bytes_string, contains_strict=False) -> None:
         super().__init__(bytes_string, None)
+        self._bytes_string = bytes_string
         self._contains_strict = contains_strict
-        self._responce_bytes = self._create_responce_bytes(bytes_string)
 
         self._success_bytes_strings = set()
         self._failure_bytes_strings = set()
@@ -143,8 +143,10 @@ class BytesCompare(Compare):
         self._client_error_bytes_strings = set()
         self._error_bytes_strings = set()
 
-    def _create_responce_bytes(self, bytes_string):
-        responce_bytes = Bytes(bytes_string)
+        self._responce_bytes = self._create_responce_bytes()
+
+    def _create_responce_bytes(self):
+        responce_bytes = ResponceBytes(self._bytes_string)
         if self._contains_strict:
             responce_bytes.enable_contains_strict()
         else:
@@ -231,10 +233,10 @@ class BytesCompare(Compare):
 
 
 if __name__ == "__main__":
-    responce_bytes =  Bytes("responce in bytes")
+    responce_bytes =  ResponceBytes("responce in bytes")
 
-    responce_compare = BytesCompare(responce_bytes, True)
-    responce_compare.set_success_bytes_strings(["responce"])
-    responce_compare.set_error_bytes_strings(["responce"]) 
+    responce_analyser = ResponceBytesAnalyser(responce_bytes, True)
+    responce_analyser.set_success_bytes_strings(["responce"])
+    responce_analyser.set_error_bytes_strings(["responce"]) 
 
-    print(responce_compare.error())
+    print(responce_analyser.error())

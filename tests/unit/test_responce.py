@@ -5,7 +5,7 @@ from perock import responce
 class BytesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.text = "Bytes of text"
-        self.bytes = responce.Bytes(self.text)
+        self.bytes = responce.ResponceBytes(self.text)
 
     def test_get_bytes(self):
         self.assertEqual(self.bytes.get_bytes(), self.text.encode())
@@ -77,26 +77,26 @@ class BytesCompareTest(unittest.TestCase):
         self.access_denied_error_text = "access denied error text"
         self.wait_error_text = "wait for while text"
 
-        self.bytes_compare = responce.BytesCompare(self.text.encode())
+        self.bytes_compare = responce.ResponceBytesAnalyser(self.text.encode())
 
-        self.success_bytes_compare = responce.BytesCompare(
+        self.success_bytes_compare = responce.ResponceBytesAnalyser(
         self.success_text.encode())
-        self.failure_bytes_compare = responce.BytesCompare(
+        self.failure_bytes_compare = responce.ResponceBytesAnalyser(
         self.failure_text.encode())
 
-        self.error_bytes_compare = responce.BytesCompare(
+        self.error_bytes_compare = responce.ResponceBytesAnalyser(
         self.error_text.encode())
-        self.wait_error_bytes_compare = responce.BytesCompare(
+        self.wait_error_bytes_compare = responce.ResponceBytesAnalyser(
         self.wait_error_text.encode())
 
-        self.target_error_bytes_compare = responce.BytesCompare(
+        self.target_error_bytes_compare = responce.ResponceBytesAnalyser(
         self.target_error_text.encode())
-        self.client_error_bytes_compare = responce.BytesCompare(
+        self.client_error_bytes_compare = responce.ResponceBytesAnalyser(
         self.client_error_text.encode())
 
-        self.not_found_error_bytes_compare = responce.BytesCompare(
+        self.not_found_error_bytes_compare = responce.ResponceBytesAnalyser(
         self.not_found_error_text.encode())
-        self.access_denied_error_bytes_compare = responce.BytesCompare(
+        self.access_denied_error_bytes_compare = responce.ResponceBytesAnalyser(
         self.access_denied_error_text.encode())
 
 
@@ -118,8 +118,8 @@ class BytesCompareTest(unittest.TestCase):
 
     def test__create_responce_bytes(self):
         self.assertIsInstance(
-            self.bytes_compare._create_responce_bytes(b""),
-            responce.Bytes
+            self.bytes_compare._create_responce_bytes(),
+            responce.ResponceBytes
         )
 
     def test_enable_contains_strict(self):
@@ -130,7 +130,7 @@ class BytesCompareTest(unittest.TestCase):
 
 
     def test_responce_bytes(self):
-        self.assertIsInstance(self.bytes_compare.responce_bytes, responce.Bytes)
+        self.assertIsInstance(self.bytes_compare.responce_bytes, responce.ResponceBytes)
 
     def test_set_success_bytes_strings(self):
         self.bytes_compare.set_success_bytes_strings(["Bytes"])

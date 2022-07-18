@@ -15,7 +15,7 @@ from .attempt import AttemptAsync
 from .check import Check
 from .check import CheckAsync
 
-from .responce import BytesCompare
+from .responce import ResponceBytesAnalyser
 
 
 class Attack(Attempt, Check):
@@ -96,18 +96,26 @@ class Attack(Attempt, Check):
             if client_errors:
                 err_msg = "Client error not expected if target was reached"
                 raise Exception(err_msg)
-            if len(list(filter(None, [main_results]))) != 1:
-                err_msg = "Only one between success, failure and errors " +\
-                f"expected, not {len(list(filter(None, [main_results])))}" +\
-                "if target was reached"
+            if len(list(filter(None, main_results))) != 1:
+                true_filtered = list(filter(None, main_results))
+                if len(true_filtered) == 0:
+                    err_msg = "'success', 'failure' or 'errors' expected " +\
+                    "if target was reached"
+                else:
+                    err_msg = "Only 1 between 'success', 'failure' " +\
+                    "and 'errors' is expected if target was reached, " +\
+                    "not " + str(len(true_filtered))
                 raise Exception(err_msg)
 
         if not target_reached:
             if target_errors:
                 err_msg = "Target error not expected if target was not reached"
                 raise Exception(err_msg)
+            if not client_errors:
+                err_msg = "Client error expected if target was not reached"
+                raise Exception(err_msg)
             if success and failure:
-                err_msg = "success or failure  not expected if target " +\
+                err_msg = "success or failure not expected if target " +\
                 "was not reached"
                 raise Exception(err_msg)
                     
@@ -174,9 +182,9 @@ class Attack(Attempt, Check):
         self._retries = 0
         while True:
             self.start()
-            time.sleep(self._retry_sleep_time)
             if self.target_reached():
                 break
+            time.sleep(self._retry_sleep_time)
 
     def target_not_reached_action(self):
         # Method called if target is not reached
@@ -185,17 +193,15 @@ class Attack(Attempt, Check):
             self._retries_started = True
             for _ in range(self._retries):
                 self.start()
-                time.sleep(self._retry_sleep_time)
                 if self.target_reached():
                     break
+                time.sleep(self._retry_sleep_time)
 
     def after_request(self):
         # Called after start() completes
         super().after_request()
         self._validate_attack()
         self._update_responce_message()
-        if self.isconfused():
-            self.confused_action()
         if not self.target_reached():
             self.target_not_reached_action()
 
@@ -208,10 +214,10 @@ class Attack(Attempt, Check):
             super().start()
 
 
-class AttackText(Attack, BytesCompare):
+class AttackText(Attack, ResponceBytesAnalyser):
     '''Attack class with responce containing bytes or text'''
     def __init__(self, target, data: dict, retries=1) -> None:
-        BytesCompare.__init__(self, b"")
+        ResponceBytesAnalyser.__init__(self, b"")
         super().__init__(target, data, retries)
 
     def responce_content(self) -> str:
@@ -219,28 +225,28 @@ class AttackText(Attack, BytesCompare):
         raise NotImplementedError
 
     def success(self) -> bool:
-        return BytesCompare.success(self)
+        return ResponceBytesAnalyser.success(self)
 
     def failure(self) -> bool:
-        return BytesCompare.failure(self)
+        return ResponceBytesAnalyser.failure(self)
 
     def target_errors(self) -> bool:
-        return BytesCompare.target_error(self)
+        return ResponceBytesAnalyser.target_error(self)
 
     def client_errors(self) -> bool:
         if super().client_errors():
             return True
-        return BytesCompare.target_error(self)
+        return ResponceBytesAnalyser.target_error(self)
 
     def errors(self) -> bool:
         if super().errors():
             return True
-        return BytesCompare.error(self)       
+        return ResponceBytesAnalyser.error(self)       
 
     def after_request(self):
         # Careful of when to call super().after_request()
-        responce_content = self.responce_content()
-        responce_bytes = self._create_responce_bytes(responce_content)
+        self._bytes_string = self.responce_content()
+        responce_bytes = self._create_responce_bytes()
         self._responce_bytes = responce_bytes
         super().after_request()
 
@@ -330,18 +336,26 @@ class AttackAsync(AttemptAsync, CheckAsync):
             if client_errors:
                 err_msg = "Client error not expected if target was reached"
                 raise Exception(err_msg)
-            if len(list(filter(None, [main_results]))) != 1:
-                err_msg = "Only one between success, failure and errors " +\
-                f"expected, not {len(list(filter(None, [main_results])))}" +\
-                "if target was reached"
+            if len(list(filter(None, main_results))) != 1:
+                true_filtered = list(filter(None, main_results))
+                if len(true_filtered) == 0:
+                    err_msg = "'success', 'failure' or 'errors' expected " +\
+                    "if target was reached"
+                else:
+                    err_msg = "Only 1 between 'success', 'failure' " +\
+                    "and 'errors' is expected if target was reached, " +\
+                    "not " + str(len(true_filtered))
                 raise Exception(err_msg)
 
         if not target_reached:
             if target_errors:
                 err_msg = "Target error not expected if target was not reached"
                 raise Exception(err_msg)
+            if not client_errors:
+                err_msg = "Client error expected if target was not reached"
+                raise Exception(err_msg)
             if success and failure:
-                err_msg = "success or failure  not expected if target " +\
+                err_msg = "success or failure not expected if target " +\
                 "was not reached"
                 raise Exception(err_msg)
                     
@@ -357,6 +371,7 @@ class AttackAsync(AttemptAsync, CheckAsync):
         if errors and (success or failure):
             err_msg = "Error not expected if theres success or failure"
             raise Exception(err_msg)
+
 
     async def _update_responce_message(self):     
         target_reached = await self.target_reached()
@@ -419,9 +434,9 @@ class AttackAsync(AttemptAsync, CheckAsync):
         self._retries = 0
         while True:
             await self._start()
-            await asyncio.sleep(self._retry_sleep_time)
             if await self.target_reached():
                 break
+            await asyncio.sleep(self._retry_sleep_time)
 
     async def target_not_reached_action(self):
         # Method called if target is not reached
@@ -430,9 +445,9 @@ class AttackAsync(AttemptAsync, CheckAsync):
             self._retries_started = True
             for _ in range(self._retries):
                 await self.start()
-                time.sleep(self._retry_sleep_time)
                 if await self.target_reached():
                     break
+                time.sleep(self._retry_sleep_time)
 
 
     async def after_request(self):
@@ -440,8 +455,6 @@ class AttackAsync(AttemptAsync, CheckAsync):
         await super().after_request()
         await self._validate_attack()
         await self._update_responce_message()
-        if await self.isconfused():
-            await self.confused_action()
         if not await self.target_reached():
             await self.target_not_reached_action()
 
@@ -456,10 +469,10 @@ class AttackAsync(AttemptAsync, CheckAsync):
 
 
 
-class AttackTextAsync(AttackAsync, BytesCompare):
+class AttackTextAsync(AttackAsync, ResponceBytesAnalyser):
     '''Attack class with responce containing bytes or text'''
     def __init__(self, target, data: dict, retries=1) -> None:
-        BytesCompare.__init__(self, b"")
+        ResponceBytesAnalyser.__init__(self, b"")
         super().__init__(target, data, retries)
 
     async def responce_content(self) -> str:
@@ -467,27 +480,27 @@ class AttackTextAsync(AttackAsync, BytesCompare):
         raise NotImplementedError
 
     async def success(self) -> bool:
-        return BytesCompare.success(self)
+        return ResponceBytesAnalyser.success(self)
 
     async def failure(self) -> bool:
-        return BytesCompare.failure(self)
+        return ResponceBytesAnalyser.failure(self)
 
     async def target_errors(self) -> bool:
-        return BytesCompare.target_error(self)
+        return ResponceBytesAnalyser.target_error(self)
 
     async def client_errors(self) -> bool:
         if await super().client_errors():
             return True
-        return BytesCompare.target_error(self)
+        return ResponceBytesAnalyser.target_error(self)
 
     async def errors(self) -> bool:
         if await super().errors():
             return True
-        return BytesCompare.error(self)   
+        return ResponceBytesAnalyser.error(self)   
 
     async def after_request(self):
         # Careful of when to call super().after_request()
-        responce_content = await self.responce_content()
-        responce_bytes = self._create_responce_bytes(responce_content)
+        self._bytes_string = await self.responce_content()
+        responce_bytes = self._create_responce_bytes()
         self._responce_bytes = responce_bytes
         await super().after_request()
