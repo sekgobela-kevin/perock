@@ -8,7 +8,7 @@ from .test_check import TestCheckAsyncCommon
 
 from perock.target import Responce, Target
 from perock.target import Account
-from perock.attack import Attack, AttackAsync, AttackText, AttackTextAsync
+from perock.attack import Attack, AttackAsync, AttackBytes, AttackBytesAsync
 
 
 class SampleAttack(Attack):
@@ -41,7 +41,7 @@ class SampleAttack(Attack):
         self.responce = responce
 
 
-class SampleAttackText(AttackText):
+class SampleAttackBytes(AttackBytes):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
         self.target: Target
@@ -52,7 +52,7 @@ class SampleAttackText(AttackText):
         self.set_failure_bytes_strings([
             "Failed to log", "account info"
         ])
-        self.set_target_error_bytes_strings([
+        self.set_target_errors_bytes_strings([
             "Our system", "was denied", "errors"
         ])
 
@@ -101,7 +101,7 @@ class SampleAttackAsync(AttackAsync):
         self.responce = responce
 
 
-class SampleAttackTextAsync(AttackTextAsync):
+class SampleAttackBytesAsync(AttackBytesAsync):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
         self.target: Target
@@ -110,7 +110,7 @@ class SampleAttackTextAsync(AttackTextAsync):
 
         self.set_success_bytes_strings(["unlocked"])
         self.set_failure_bytes_strings(["Failed to log"])
-        self.set_target_error_bytes_strings(["Our system"])
+        self.set_target_errors_bytes_strings(["Our system"])
 
     async def responce_content(self) -> str:
         if await self.target_reached():
@@ -190,8 +190,8 @@ class TestAttackCommon(
     def test_isconfused(self):
         self.attack.isconfused()
 
-class TestAttackTextCommon(TestAttackCommon):
-    attack_class = SampleAttackText
+class TestAttackBytesCommon(TestAttackCommon):
+    attack_class = SampleAttackBytes
 
 
 class TestAttackAsyncCommon(
@@ -209,8 +209,8 @@ class TestAttackAsyncCommon(
         pass
 
 
-class TestAttackTextAsyncCommon(TestAttackAsyncCommon):
-    attack_class = SampleAttackTextAsync
+class TestAttackBytesAsyncCommon(TestAttackAsyncCommon):
+    attack_class = SampleAttackBytesAsync
 
 
 
@@ -219,14 +219,14 @@ class TestAttackTextAsyncCommon(TestAttackAsyncCommon):
 class TestAttack(TestAttackCommon, unittest.TestCase):
     pass
 
-class TestAttackText(TestAttackTextCommon, unittest.TestCase):
+class TestAttackBytes(TestAttackBytesCommon, unittest.TestCase):
     pass
 
 class TestAttackAsync(TestAttackAsyncCommon, unittest.IsolatedAsyncioTestCase):
     pass
 
-class TestAttackTextAsync(
-    TestAttackTextAsyncCommon, 
+class TestAttackBytesAsync(
+    TestAttackBytesAsyncCommon, 
     unittest.IsolatedAsyncioTestCase):
     pass
 

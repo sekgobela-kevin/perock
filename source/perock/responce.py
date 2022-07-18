@@ -99,6 +99,9 @@ class ResponceAnalyserBase():
         self._responce = responce
         self._other = other
 
+    def target_reached(self):
+        raise NotImplementedError
+
     def success(self):
         raise NotImplementedError
 
@@ -131,6 +134,8 @@ class ResponceBytesAnalyser(ResponceAnalyserBase):
         self._bytes_string = bytes_string
         self._contains_strict = contains_strict
 
+        self._target_reached_bytes_strings = set()
+
         self._success_bytes_strings = set()
         self._failure_bytes_strings = set()
         self._error_bytes_strings = set()
@@ -143,7 +148,14 @@ class ResponceBytesAnalyser(ResponceAnalyserBase):
         self._client_error_bytes_strings = set()
         self._error_bytes_strings = set()
 
-        self._responce_bytes = self._create_responce_bytes()
+        # Updates and setup self._responce_bytes
+        self.update()
+
+    def enable_contains_strict(self):
+        self._responce_bytes.enable_contains_strict()
+
+    def disable_contains_strict(self):
+        self._responce_bytes.disable_contains_strict()
 
     def _create_responce_bytes(self):
         responce_bytes = ResponceBytes(self._bytes_string)
@@ -153,16 +165,14 @@ class ResponceBytesAnalyser(ResponceAnalyserBase):
             responce_bytes.disable_contains_strict()
         return responce_bytes
 
-    def enable_contains_strict(self):
-        self._responce_bytes.enable_contains_strict()
+    def update(self, bytes_string: bytes=None):
+        # Updates self._responce_bytes to match with bytes_string
+        if bytes_string != None:
+            self._bytes_string = bytes_string
+        self._responce_bytes = self._create_responce_bytes()
 
-    def disable_contains_strict(self):
-        self._responce_bytes.disable_contains_strict()
-
-    @property
-    def responce_bytes(self):
-        # Returns bytes or text from responce
-        return self._responce_bytes
+    def set_target_reached_bytes_strings(self, bytes_strings):
+        self._target_reached_bytes_strings = set(bytes_strings)
 
     def set_success_bytes_strings(self, bytes_strings):
         self._success_bytes_strings = set(bytes_strings)
@@ -198,6 +208,9 @@ class ResponceBytesAnalyser(ResponceAnalyserBase):
     def contains_iteraror(self, bytes_iterator):
         return self._responce_bytes.contains_iterator(bytes_iterator)
 
+    def target_reached(self):
+        return self.contains_iteraror(self._target_reached_bytes_strings)
+
     def success(self):
         return self.contains_iteraror(self._success_bytes_strings)
 
@@ -214,16 +227,19 @@ class ResponceBytesAnalyser(ResponceAnalyserBase):
         return self.contains_iteraror(self._access_denied_error_bytes_strings)
 
     def target_error(self):
-        return self.contains_iteraror(self._target_error_bytes_strings)
+        target_errors_bool = [
+            self.wait_error(),
+            self.not_found_error(),
+            self.access_denied_error(),
+            self.contains_iteraror(self._target_error_bytes_strings)
+        ]
+        return any(target_errors_bool)
 
     def client_error(self):
         return self.contains_iteraror(self._client_error_bytes_strings)
 
     def error(self):
         errors_bool = [
-            self.wait_error(),
-            self.not_found_error(),
-            self.access_denied_error(),
             self.target_error(),
             self.client_error(),
             self.contains_iteraror(self._error_bytes_strings)

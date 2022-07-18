@@ -214,49 +214,6 @@ class Attack(Attempt, Check):
             super().start()
 
 
-class AttackText(Attack, ResponceBytesAnalyser):
-    '''Attack class with responce containing bytes or text'''
-    def __init__(self, target, data: dict, retries=1) -> None:
-        ResponceBytesAnalyser.__init__(self, b"")
-        super().__init__(target, data, retries)
-
-    def responce_content(self) -> str:
-        '''Returns string or bytes from responce'''
-        raise NotImplementedError
-
-    def success(self) -> bool:
-        return ResponceBytesAnalyser.success(self)
-
-    def failure(self) -> bool:
-        return ResponceBytesAnalyser.failure(self)
-
-    def target_errors(self) -> bool:
-        return ResponceBytesAnalyser.target_error(self)
-
-    def client_errors(self) -> bool:
-        if super().client_errors():
-            return True
-        return ResponceBytesAnalyser.target_error(self)
-
-    def errors(self) -> bool:
-        if super().errors():
-            return True
-        return ResponceBytesAnalyser.error(self)       
-
-    def after_request(self):
-        # Careful of when to call super().after_request()
-        self._bytes_string = self.responce_content()
-        responce_bytes = self._create_responce_bytes()
-        self._responce_bytes = responce_bytes
-        super().after_request()
-
-
-
-# -----------------------------------------------
-# Classes from here are for attack async classes
-# -----------------------------------------------
-
-
 
 class AttackAsync(AttemptAsync, CheckAsync):
     '''Perform attack using request implemeted with asyncio'''
@@ -469,38 +426,125 @@ class AttackAsync(AttemptAsync, CheckAsync):
 
 
 
-class AttackTextAsync(AttackAsync, ResponceBytesAnalyser):
+
+# -----------------------------------------------
+# Attack Text classes begin here
+# -----------------------------------------------
+
+
+class AttackResponceBytesAnalyser():
+    #ResponceBytesAnalyser class for attack text classes including 
+    # AttackBytesAsync'''
+
+    # This class is meant to be used temporary until ResponceBytesAnalyser
+    # class is used fully.
+    # It only strips away unwanted functionality from ResponceBytesAnalyser
+    # The functionalities are just not needed currently.
+
+    # Sorry, I cant write unit-tests for this class.
+    # ResponceBytesAnalyser already has tests that already tests everything.
+    def __init__(self, bytes_string, contains_strict=False) -> None:
+        self._responce_analyser = ResponceBytesAnalyser(
+            bytes_string, 
+            contains_strict
+        )
+
+    def set_target_reached_bytes_strings(self, bytes_strings):
+        self._responce_analyser.set_target_reached_bytes_strings(bytes_strings)
+
+    def set_target_errors_bytes_strings(self, bytes_strings):
+        self._responce_analyser.set_target_error_bytes_strings(bytes_strings)
+
+    def set_client_errors_bytes_strings(self, bytes_strings):
+        self._responce_analyser.set_client_error_bytes_strings(bytes_strings)
+
+    def set_errors_bytes_strings(self, bytes_strings):
+        self._responce_analyser.set_error_bytes_strings(bytes_strings)
+
+    def set_success_bytes_strings(self, bytes_strings):
+        self._responce_analyser.set_success_bytes_strings(bytes_strings)
+
+    def set_failure_bytes_strings(self, bytes_strings):
+        self._responce_analyser.set_failure_bytes_strings(bytes_strings)
+
+
+class AttackBytes(Attack, AttackResponceBytesAnalyser):
     '''Attack class with responce containing bytes or text'''
     def __init__(self, target, data: dict, retries=1) -> None:
-        ResponceBytesAnalyser.__init__(self, b"")
         super().__init__(target, data, retries)
+        AttackResponceBytesAnalyser.__init__(self, b"")
+
+    def responce_content(self) -> str:
+        '''Returns string or bytes from responce'''
+        raise NotImplementedError
+
+    def target_reached(self):
+        if super().target_reached():
+            return True
+        return self._responce_analyser.target_reached()
+
+    def success(self) -> bool:
+        return self._responce_analyser.success()
+
+    def failure(self) -> bool:
+        return self._responce_analyser.failure()
+
+    def target_errors(self) -> bool:
+        return self._responce_analyser.target_error()
+
+    def client_errors(self) -> bool:
+        if super().client_errors():
+            return True
+        return self._responce_analyser.target_error()
+
+    def errors(self) -> bool:
+        if super().errors():
+            return True
+        return self._responce_analyser.error()       
+
+    def after_request(self):
+        # Careful of when to call super().after_request()
+        bytes_string = self.responce_content()
+        self._responce_analyser.update(bytes_string)
+        super().after_request()
+
+
+class AttackBytesAsync(AttackAsync,  AttackResponceBytesAnalyser):
+    '''Attack class with responce containing bytes or text'''
+    def __init__(self, target, data: dict, retries=1) -> None:
+        super().__init__(target, data, retries)
+        AttackResponceBytesAnalyser.__init__(self, b"")
 
     async def responce_content(self) -> str:
         '''Returns string or bytes from responce'''
         raise NotImplementedError
 
+    async def target_reached(self):
+        if await super().target_reached():
+            return True
+        return self._responce_analyser.target_reached()
+
     async def success(self) -> bool:
-        return ResponceBytesAnalyser.success(self)
+        return self._responce_analyser.success()
 
     async def failure(self) -> bool:
-        return ResponceBytesAnalyser.failure(self)
+        return self._responce_analyser.failure()
 
     async def target_errors(self) -> bool:
-        return ResponceBytesAnalyser.target_error(self)
+        return self._responce_analyser.target_error()
 
     async def client_errors(self) -> bool:
         if await super().client_errors():
             return True
-        return ResponceBytesAnalyser.target_error(self)
+        return self._responce_analyser.target_error()
 
     async def errors(self) -> bool:
         if await super().errors():
             return True
-        return ResponceBytesAnalyser.error(self)   
+        return self._responce_analyser.error()   
 
     async def after_request(self):
         # Careful of when to call super().after_request()
-        self._bytes_string = await self.responce_content()
-        responce_bytes = self._create_responce_bytes()
-        self._responce_bytes = responce_bytes
+        bytes_string = await self.responce_content()
+        self._responce_analyser.update(bytes_string)
         await super().after_request()
