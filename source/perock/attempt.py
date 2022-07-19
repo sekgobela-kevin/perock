@@ -103,7 +103,10 @@ class Attempt():
     def close_responce(self):
         "Closes responce object"
         try_close(self._responce)
-        
+    
+    def session_exists(self) -> bool:
+        '''Returns True if session exists'''
+        return self._session != None
 
     def set_session(self, session):
         '''Sets session object structure to use with .request().
@@ -111,14 +114,8 @@ class Attempt():
         self._session = session
 
     def get_session(self):
-        try:
-            return self._session
-        except AttributeError:
-            return None
-            #err_msg = "session object not found"
-            #err_msg2 = "please set session with .set_session()"
-            #raise AttributeError(err_msg, err_msg2)
-            pass
+        '''Returns session if exists else None'''
+        return self._session
 
     def get_responce(self):
         '''Returns responce from target'''

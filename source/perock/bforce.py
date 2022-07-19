@@ -115,7 +115,7 @@ class BForce():
 
         # This sets maximum parallel primary items tasks
         # e.g multiples usernames can be executed at same time.
-        self._max_parallel_primary_tasks = 5
+        self._max_parallel_primary_tasks = 1
 
     def enable_optimise(self):
         self._optimise = True
