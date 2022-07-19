@@ -68,7 +68,7 @@ class BForceSetUp(CommonTest):
 
         self.setup_bforce_object()
 
-        #attack = AttackSample(self.target, {"username":"THOMAS", "password":"marian"})
+        #attack = AttackSample(self._target, {"username":"THOMAS", "password":"marian"})
         #assert attack.success(), "Attack should be success"
 
     def setup_table(self):
@@ -82,7 +82,7 @@ class BForceSetUp(CommonTest):
 
     def setup_target(self):
         # Setup Target object
-        self.target = BForceTestTarget()
+        self._target = BForceTestTarget()
         self.target_usernames = {
             "BROWN", "MARTINEZ", "ANDERSON", "THOMAS", "JACKSON"
         }
@@ -97,11 +97,11 @@ class BForceSetUp(CommonTest):
             Account({"username":"THOMAS", "password":"titanium"}),
             Account({"username":"JACKSON", "password":"underdog"})
         ]
-        self.target.add_accounts(self.accounts)
+        self._target.add_accounts(self.accounts)
 
 
     def setup_bforce_object(self):
-        self.bforce = bforce.BForce(self.target, self.table)
+        self.bforce = bforce.BForce(self._target, self.table)
         self.bforce.set_attack_class(AttackSample)
         self.bforce.set_max_parallel_primary_tasks(20)
 
@@ -125,7 +125,7 @@ class BForceCommonTest(BForceSetUp):
 
 class BForceAsyncCommonTest(BForceCommonTest):
     def setup_bforce_object(self):
-        self.bforce = bforce.BForceAsync(self.target, self.table)
+        self.bforce = bforce.BForceAsync(self._target, self.table)
         self.bforce.set_attack_class(AttackAsyncSample)
 
     def start(self):
@@ -135,12 +135,12 @@ class BForceAsyncCommonTest(BForceCommonTest):
 
 class BForceBlockCommonTest(BForceCommonTest):
     def setup_bforce_object(self):
-        self.bforce = bforce.BForceBlock(self.target, self.table)
+        self.bforce = bforce.BForceBlock(self._target, self.table)
         self.bforce.set_attack_class(AttackSample)
 
 class BForceAsyncCommonTest(BForceCommonTest):
     def setup_bforce_object(self):
-        self.bforce = bforce.BForceBlock(self.target, self.table)
+        self.bforce = bforce.BForceBlock(self._target, self.table)
         self.bforce.set_attack_class(AttackSample)
 
 

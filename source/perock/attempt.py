@@ -38,26 +38,26 @@ class Attempt():
         '''
         target - system to send data to e.g url
         data - data to send to target'''
-        self.target = target
-        self.data = data
+        self._target = target
+        self._data = data
 
         # session to share with other attack object
-        self.session = None
+        self._session = None
         # Error message from responce
-        self.responce_msg = None
+        self._responce_msg = None
         # represents our responce
-        self.responce = None
+        self._responce = None
 
     def get_responce_message(self):
-        return self.responce_msg
+        return self._responce_msg
 
     def get_target(self):
         # Returns target to be used for attack
-        return self.target
+        return self._target
 
     def get_data(self):
         # Returns data to be used for attack
-        return self.data
+        return self._data
 
     @classmethod
     def add_unraised_exception(cls, exception):
@@ -97,22 +97,22 @@ class Attempt():
 
     def close_session(self):
         '''Closes session object'''
-        try_close(self.session)
-        assert self.session.closed
+        try_close(self._session)
+        assert self._session.closed
 
     def close_responce(self):
         "Closes responce object"
-        try_close(self.responce)
+        try_close(self._responce)
         
 
     def set_session(self, session):
         '''Sets session object structure to use with .request().
         session can be anything that be reused with request.'''
-        self.session = session
+        self._session = session
 
     def get_session(self):
         try:
-            return self.session
+            return self._session
         except AttributeError:
             return None
             #err_msg = "session object not found"
@@ -122,7 +122,7 @@ class Attempt():
 
     def get_responce(self):
         '''Returns responce from target'''
-        return self.responce
+        return self._responce
         
 
     def request(self):
@@ -135,8 +135,8 @@ class Attempt():
 
     def before_request(self):
         # Called im,edeiately when start() is called
-        if not self.validate_data(self.data):
-            err_msg = f"Data({self.data}) is not valid"
+        if not self.validate_data(self._data):
+            err_msg = f"Data({self._data}) is not valid"
             err_msg2 = "check if the data is in right format"
             raise ValueError(err_msg, err_msg2)
 
@@ -146,14 +146,14 @@ class Attempt():
 
     def _start(self):
         try:
-            self.responce =  self.request()
+            self._responce =  self.request()
         except Exception as e:
             if self._should_raise_exception(e):
                 raise e
             else:
-                self.responce = e
-                self.responce_msg = str(e)
-        if self.responce == None:
+                self._responce = e
+                self._responce_msg = str(e)
+        if self._responce == None:
             err_msg = "responce cant be None"
             raise Exception(err_msg)
 
@@ -166,7 +166,7 @@ class Attempt():
 
     def close(self):
         #self.close_session()
-        if self.responce:
+        if self._responce:
             self.close_responce()
 
     def __enter__(self):
@@ -190,11 +190,11 @@ class AttemptAsync(Attempt):
 
     async def close_session(self):
         '''Closes session object'''
-        await try_close_async(self.session)
+        await try_close_async(self._session)
 
     async def close_responce(self):
         "Closes responce object"
-        await try_close_async(self.responce)
+        await try_close_async(self._responce)
 
     async def before_request(self):
         super().before_request()
@@ -210,14 +210,14 @@ class AttemptAsync(Attempt):
 
     async def _start(self):
         try:
-            self.responce =  await self.request()
+            self._responce =  await self.request()
         except Exception as e:
             if self._should_raise_exception(e):
                 raise e
             else:
-                self.responce = e
-                self.responce_msg = str(e)
-        if self.responce == None:
+                self._responce = e
+                self._responce_msg = str(e)
+        if self._responce == None:
             err_msg = "responce cant be None"
             raise Exception(err_msg)
 
@@ -231,7 +231,7 @@ class AttemptAsync(Attempt):
 
     async def close(self):
         #self.close_session()
-        if self.responce:
+        if self._responce:
             await self.close_responce()
 
     async def __aenter__(self):
@@ -252,12 +252,12 @@ if __name__ == "__main__":
             self.request: requests.Request
 
         def request(self):
-            return requests.post(self.target, params=self.data)
+            return requests.post(self._target, params=self._data)
 
         @property
         def text(self):
             if self.target_reached:
-                return self.responce.text
+                return self._responce.text
 
 
     url = 'https://httpbin.org/get'

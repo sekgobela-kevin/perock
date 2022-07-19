@@ -85,9 +85,9 @@ class BForce():
 
         # Total independed tasks to run
         # Corresponds to requests that will be executed concurrently
-        self.total_tasks = 500
-        # Threads to use on self.total_tasks
-        self.total_threads = None
+        self._total_tasks = 500
+        # Threads to use on self._total_tasks
+        self._total_threads = None
         
         # store thread specific attributes
         # e.g session object
@@ -95,12 +95,12 @@ class BForce():
         self._lock = threading.Lock()
 
         # Changed callback when producer or consumer completes
-        self.producer_completed = False
-        self.consumer_completed = False
+        self._producer_completed = False
+        self._consumer_completed = False
 
         # If False, producer would stop
-        self.producer_should_run = True
-        self.consumer_should_run = True
+        self._producer_should_run = True
+        self._consumer_should_run = True
 
         # Primary items of cracked records
         self._success_primary_items = set()
@@ -110,8 +110,8 @@ class BForce():
         # Stores consumer tasks not yet completed
         self._current_tasks: Set[Future] = set()
 
-        self.executor: Executor = None
-        self.max_workers = None
+        self._executor: Executor = None
+        self._max_workers = None
 
         # This sets maximum parallel primary items tasks
         # e.g multiples usernames can be executed at same time.
@@ -134,33 +134,33 @@ class BForce():
 
     def set_executor(self, executor):
         # Sets executo to use e.g TheadPoolExecutor
-        self.executor = executor
+        self._executor = executor
 
     def get_executor(self) -> Executor:
         # Returns pool executor e.g TheadPoolExecutor
-        return self.executor
+        return self._executor
 
     def get_success_records(self):
         return self._success_records
 
     def set_max_workers(self, max_workers):
         # Sets max workers for executor
-        self.max_workers = max_workers
+        self._max_workers = max_workers
 
     def create_or_get_executor(self):
         # Gets executor or create one if not set
-        if self.executor == None:
-            return ThreadPoolExecutor(self.max_workers)
+        if self._executor == None:
+            return ThreadPoolExecutor(self._max_workers)
         else:
-            return self.executor
+            return self._executor
 
     
     def set_total_threads(self, total):
-        self.total_threads = total
+        self._total_threads = total
         self.set_max_workers(total)
 
     def set_max_parallel_tasks(self, total):
-        self.total_tasks = total
+        self._total_tasks = total
 
 
     def create_session(self):
@@ -431,7 +431,7 @@ class BForce():
     def handle_attack_results(self, attack_object:Type[Attack], record):
         # Handles results of attack on attack object
         # start() was already called and finished
-        # responce can be accessed with self.responce
+        # responce can be accessed with self._responce
         if attack_object.errors():
             self.attack_error_callback(attack_object, record)
         elif attack_object.failure():
@@ -509,19 +509,19 @@ class BForce():
 
     def consumer_done_callback(self):
         # Called when consumer completed
-        self.consumer_completed = True
+        self._consumer_completed = True
 
     def producer_done_callback(self):
         # Called when producer completed
-        self.producer_completed = True
+        self._producer_completed = True
 
     def running(self):
         # Returns True when attack is taking place
-        return self.consumer_completed or self.producer_completed
+        return self._consumer_completed or self._producer_completed
 
     def cancel_producer(self):
         # Requests producer to stop running
-        self.producer_should_run = False
+        self._producer_should_run = False
         try:
             # Get item from records_queue to give producer opportunity to stop.
             # This applies incase producer has stopped
@@ -531,14 +531,14 @@ class BForce():
 
     def cancel_consumer(self):
         # Requests producer to stop running
-        self.consumer_should_run = False
+        self._consumer_should_run = False
 
 
     def consumer_should_continue(self):
         # Checks if consumer should continue running
-        if not self.consumer_should_run:
+        if not self._consumer_should_run:
             return False
-        elif self.records_queue.empty() and self.producer_completed:
+        elif self.records_queue.empty() and self._producer_completed:
             # Producer completed and its items were consumed
             return False
         else :
@@ -546,7 +546,7 @@ class BForce():
 
     def producer_should_continue(self):
         # Checks if producer should continue running
-        return self.producer_should_run
+        return self._producer_should_run
 
 
     def consumer_get_queue_record(self):
@@ -589,8 +589,8 @@ class BForce():
         '''Starts attack into system identified by target'''
         # setup semaphore and queue at start
         # sets value and maxsize to total_tasks
-        self.semaphore = threading.Semaphore(self.total_tasks)
-        self.records_queue = queue.Queue(self.total_tasks)
+        self.semaphore = threading.Semaphore(self._total_tasks)
+        self.records_queue = queue.Queue(self._total_tasks)
 
         futures = []
         executor = self.create_or_get_executor()
@@ -599,7 +599,7 @@ class BForce():
         for future in futures:
             # Raises exception if there was error
             future.result()
-        if self.executor == None:
+        if self._executor == None:
             executor.shutdown(True)
 
 
@@ -621,11 +621,11 @@ class BForceAsync(BForce):
     # start: Session methods
     def session_exists(self):
         # Returns True if session object exists
-        return hasattr(self, "session")
+        return hasattr(self, "_session")
 
     def set_session(self, session):
         # Sets session object to be used by Attack objects
-        self.session = session
+        self._session = session
 
     async def create_session(self):
         # Creates session object to be shared with attack objects
@@ -653,7 +653,7 @@ class BForceAsync(BForce):
             else:
                 self.set_session(session)
         # Not thread safe but safe with asyncio
-        return self.session
+        return self._session
 
 
     async def close_session(self):
@@ -680,7 +680,7 @@ class BForceAsync(BForce):
         record: Record):
         # Handles results of attack on attack object
         # start() was already called and finished
-        # responce can be accessed with self.responce
+        # responce can be accessed with self._responce
         if await attack_object.errors():
             self.attack_error_callback(attack_object, record)
         elif await attack_object.failure():
@@ -746,7 +746,7 @@ class BForceAsync(BForce):
         tasks:Set[asyncio.Task] = set()
         count = 0
         # The while loop can be replaced by Semaphore object
-        while count < self.total_tasks:
+        while count < self._total_tasks:
             record = self.consumer_get_queue_record()
             if record != None:
                 awaitable =  self.handle_attack_recursive(record)
@@ -769,8 +769,8 @@ class BForceAsync(BForce):
     async def start(self):
         # setup semaphore and queue at start
         # sets value and maxsize to total_tasks
-        self.semaphore = threading.Semaphore(self.total_tasks)
-        self.records_queue = queue.Queue(self.total_tasks)
+        self.semaphore = threading.Semaphore(self._total_tasks)
+        self.records_queue = queue.Queue(self._total_tasks)
         # producer and consumer as awaitables
         awaitables = [self.producer_coroutine(), self.consumer()]
         tasks = []
@@ -799,14 +799,14 @@ class BForceBlock(BForce):
         self.producer_done_callback()
 
     def producer_should_continue(self):
-        return self.producer_should_run
+        return self._producer_should_run
 
     def consumer_should_continue(self):
-        return self.consumer_should_run
+        return self._consumer_should_run
 
     def cancel_producer(self):
         # Requests producer to stop running
-        self.producer_should_run = False
+        self._producer_should_run = False
 
     def consumer(self):
         for record in self.producer():

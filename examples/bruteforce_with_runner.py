@@ -16,7 +16,7 @@ class WebAttack(attack.Attack):
     '''Example Attack class for brutuforcing on webpage login form'''
     def __init__(self, target, data: dict) -> None:
         super().__init__(target, data)
-        self.responce: requests.Response
+        self._responce: requests.Response
 
         # requests.exceptions.ConnectionError wont be raised
         # But will be treated as responce
@@ -36,15 +36,15 @@ class WebAttack(attack.Attack):
         if session == None:
             # session object wasnt provided
             # we then perform request direcly
-            return requests.post(self.target, data=self.data)
+            return requests.post(self._target, data=self._data)
         else:
             # session would improve request performance
-            return session.post(self.target, data=self.data)
+            return session.post(self._target, data=self._data)
 
     def target_errors(self):
         # Should return True if target experienced errors
         if self.target_reached():
-            status_code = self.responce.status_code
+            status_code = self._responce.status_code
             return status_code >= 500 and status_code < 600
         # Target was never reached so no errors
         return False
@@ -53,7 +53,7 @@ class WebAttack(attack.Attack):
         # Should return True if there was error caused by client.
         # This may include exceptions and error on target caused by client.
         if self.target_reached():
-            status_code = self.responce.status_code
+            status_code = self._responce.status_code
             return status_code >= 400 and status_code < 500
         # Let super class decide
         # Its possible that exception was raised.
@@ -65,7 +65,7 @@ class WebAttack(attack.Attack):
         # That means target was cracked.
         if self.target_reached():
             # Check if responce bytes contain text
-            return b"Login successful" in self.responce.content
+            return b"Login successful" in self._responce.content
         # Not successful as target was not reached
         # There may be client error thats why target not reached
         return False
@@ -75,9 +75,9 @@ class WebAttack(attack.Attack):
         # That means it just failed without error
         if self.target_reached():
             # Check if responce bytes contain text
-            if b"Failed to login" in self.responce.content:
+            if b"Failed to login" in self._responce.content:
                 return True
-            elif b"No such username" in self.responce.content:
+            elif b"No such username" in self._responce.content:
                 return True
             else:
                 return False

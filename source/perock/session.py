@@ -50,20 +50,20 @@ class BForceSession():
 class BForceBlockSession(BForceSession):
     def __init__(self) -> None:
         super().__init__()
-        self.session = None
+        self._session = None
 
     def session_exists(self):
         # Returns True if session object exists
-        return self.session != None
+        return self._session != None
 
     def set_session(self, session):
         # Sets session object to be used by Attack objects
-        self.session = session
+        self._session = session
 
     def get_session(self):
         if not self.session_exists():
             # Not thread safe but safe with asyncio
-            return self.session
+            return self._session
         return None
 
     def create_get_session(self):
@@ -92,7 +92,7 @@ class BForceAsyncSession(BForceBlockSession):
         # We also have choice of when to switch task compared to threads
         if not self.session_exists():
             # Not thread safe but safe with asyncio
-            return self.session
+            return self._session
         return None
 
     async def create_get_session(self):

@@ -69,9 +69,9 @@ class Attack(Attempt, Check):
                 raise Exception(err_msg)
 
         if request_failed:
-            if not isinstance(self.responce, Exception):
+            if not isinstance(self._responce, Exception):
                 err_msg = "Responce should be exception if request failed"
-                raise Exception(err_msg, type(self.responce))
+                raise Exception(err_msg, type(self._responce))
             if not client_errors:
                 err_msg = "Client error expected if request failed"
                 raise Exception(err_msg)
@@ -124,22 +124,22 @@ class Attack(Attempt, Check):
 
     def _update_responce_message(self):        
         if self.target_reached():
-            self.responce_msg = "Target was reached"
+            self._responce_msg = "Target was reached"
             if self.target_errors():
-                self.responce_msg = "Target experienced errors"
+                self._responce_msg = "Target experienced errors"
             elif self.failure():
-                self.responce_msg = "Failed to crack target(failure)"
+                self._responce_msg = "Failed to crack target(failure)"
             elif self.success():
-                self.responce_msg = "Target was cracked(success)"
+                self._responce_msg = "Target was cracked(success)"
         else:
-            self.responce_msg = "Target was not reached"
+            self._responce_msg = "Target was not reached"
             if not self.request_started():
-                self.responce_msg = "Request was not started"
+                self._responce_msg = "Request was not started"
             elif self.request_failed():
                 # Request failed, responce should be exception.
-                self.responce_msg = str(self.responce)
+                self._responce_msg = str(self._responce)
             elif self.client_errors():
-                self.responce_msg = "Client experienced errors"
+                self._responce_msg = "Client experienced errors"
             else:
                 err_msg = "Target not reached for unknown reasons"
                 raise Exception(err_msg)
@@ -158,7 +158,7 @@ class Attack(Attempt, Check):
         err_msg = f'''
         Not sure if attack failed or was success(confused)
 
-        Record/Data: {self.data}
+        Record/Data: {self._data}
         Target Reached: {self.target_reached()}
         Errors: {self.errors()}
         Failed: {self.failure()}
@@ -249,9 +249,9 @@ class AttackAsync(AttemptAsync, CheckAsync):
                 raise Exception(err_msg)
 
         if request_failed:
-            if not isinstance(self.responce, Exception):
+            if not isinstance(self._responce, Exception):
                 err_msg = "Responce should be exception if request failed"
-                raise Exception(err_msg, type(self.responce))
+                raise Exception(err_msg, type(self._responce))
             if not client_errors:
                 err_msg = "Client error expected if request failed"
                 raise Exception(err_msg)
@@ -315,22 +315,22 @@ class AttackAsync(AttemptAsync, CheckAsync):
         success = await self.success()
    
         if target_reached:
-            self.responce_msg = "Target was reached"
+            self._responce_msg = "Target was reached"
             if target_errors:
-                self.responce_msg = "Target experienced errors"
+                self._responce_msg = "Target experienced errors"
             elif failure:
-                self.responce_msg = "Failed to crack target(failure)"
+                self._responce_msg = "Failed to crack target(failure)"
             elif success:
-                self.responce_msg = "Target was cracked(success)"
+                self._responce_msg = "Target was cracked(success)"
         else:
-            self.responce_msg = "Target was not reached"
+            self._responce_msg = "Target was not reached"
             if not request_started:
-                self.responce_msg = "Request was not started"
+                self._responce_msg = "Request was not started"
             elif request_failed:
                 # Request failed, responce should be exception.
-                self.responce_msg = str(self.responce)
+                self._responce_msg = str(self._responce)
             elif client_errors:
-                self.responce_msg = "Client experienced errors"
+                self._responce_msg = "Client experienced errors"
             else:
                 err_msg = "Target not reached for unknown reasons"
                 raise Exception(err_msg)
@@ -349,7 +349,7 @@ class AttackAsync(AttemptAsync, CheckAsync):
         err_msg = f'''
         Not sure if attack failed or was success(confused)
 
-        Record/Data: {self.data}
+        Record/Data: {self._data}
         Target Reached: {await self.target_reached()}
         Errors: {await self.errors()}
         Failed: {await self.failure()}

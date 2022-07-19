@@ -57,10 +57,10 @@ class TestBForceSetUP(TestTableSetUp, TestAttemptSetUp):
         self.create_bforce_objects()
 
     def create_bforce_objects(self):
-        self.bforce = self.bforce_class(self.target, self.table)
+        self.bforce = self.bforce_class(self._target, self.table)
         self.bforce.set_attack_class(self.attack_class)
         # Has no attack class
-        self.bforce_raw = self.bforce_class(self.target, self.table)
+        self.bforce_raw = self.bforce_class(self._target, self.table)
 
 
 class TestBForceCommon(TestBForceSetUP):
@@ -105,7 +105,7 @@ class TestBForceCommon(TestBForceSetUP):
         self.assertIsInstance(self.bforce.create_session(), Session)
 
     def test_close_session(self):
-        self.bforce.set_session(self.session)
+        self.bforce.set_session(self._session)
         self.bforce.close_session()
         self.assertTrue(self.bforce.get_session().closed)
 
@@ -132,11 +132,11 @@ class TestBForceCommon(TestBForceSetUP):
         self.assertFalse(self.bforce.attack_class_async())
 
     def test_create_attack_object(self):
-        attack_object = self.bforce.create_attack_object(self.data)
+        attack_object = self.bforce.create_attack_object(self._data)
         self.assertIsInstance(attack_object, self.attack_class)
         with self.assertRaises(AttributeError):
             # bforce_raw does not hae attack class
-            self.bforce_raw.create_attack_object(self.data)
+            self.bforce_raw.create_attack_object(self._data)
 
     def test_get_current_producer_method(self):
         self.assertTrue(callable(self.bforce.get_current_producer_method()))
@@ -177,11 +177,11 @@ class TestBForceAsyncCommon(TestBForceCommon):
         self.assertTrue(self.bforce.attack_class_async())
 
     def test_create_attack_object(self):
-        attack_object = self.bforce.create_attack_object(self.data)
+        attack_object = self.bforce.create_attack_object(self._data)
         self.assertIsInstance(attack_object, self.attack_class)
         with self.assertRaises(AttributeError):
             # bforce_raw does not hae attack class
-            self.bforce_raw.create_attack_object(self.data)
+            self.bforce_raw.create_attack_object(self._data)
 
     async def test_create_session(self):
         with self.assertRaises(AttributeError):
@@ -191,7 +191,7 @@ class TestBForceAsyncCommon(TestBForceCommon):
         self.assertIsInstance(await self.bforce.create_session(), Session)
 
     async def test_close_session(self):
-        self.bforce.set_session(self.session)
+        self.bforce.set_session(self._session)
         await self.bforce.close_session()
         session = await self.bforce.get_session()
         self.assertTrue(session.closed)

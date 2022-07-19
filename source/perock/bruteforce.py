@@ -75,12 +75,12 @@ class BruteForceBase():
         'optimise' as True for username-password attack.
         '''
         super().__init__("test target", forcetable.Table())
-        self.target = target
+        self._target = target
         self.table: forcetable.Table = table
         self.optimise = optimise
 
         self.bforce = self._create_bforce_object(
-            self.target, self.table, self.optimise
+            self._target, self.table, self.optimise
         )
 
     def __attack__init__(self, target, data):
@@ -160,14 +160,14 @@ if __name__ == "__main__":
 
         def __attack__init__(self, *args, **kwargs):
             super().__attack__init__(*args, **kwargs)
-            self.responce: target.Responce
+            self._responce: target.Responce
             self.name = "name"
 
         def success(self):
             return True
 
         async def request(self):
-            #print("request", self.data)
+            #print("request", self._data)
             return target.Target().login({})
 
 

@@ -26,7 +26,7 @@ class TestRunnerSetUp(TestBForceSetUP):
 
     def create_runner_objects(self):
         self.runner = self.runner_class(self.attack_class)
-        self.runner.set_target(self.target)
+        self.runner.set_target(self._target)
         self.runner.set_table(self.table)
 
 
@@ -46,10 +46,10 @@ class TestRunnerCommon(TestRunnerSetUp):
     # This class does not test the methods but just calls them.
     # Its just a check if the methods raises error.
     def test_set_target(self):
-        self.runner.set_target(self.target)
+        self.runner.set_target(self._target)
     
     def test_set_table(self):
-        self.runner.set_target(self.target)
+        self.runner.set_target(self._target)
 
     def test_enable_optimise(self):
         self.runner.enable_optimise()

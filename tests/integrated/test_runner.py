@@ -29,7 +29,7 @@ class RunnerSetUp(test_bforce.BForceSetUp):
 
     def setup_runner(self):
         self.runner = runner.Runner(common_classes.AttackSample)
-        self.runner.set_target(self.target)
+        self.runner.set_target(self._target)
         self.runner.set_table(self.table)
     
     def start(self):
@@ -39,13 +39,13 @@ class RunnerSetUp(test_bforce.BForceSetUp):
 class RunnerBlockSetUp(test_bforce.BForceSetUp):
     def setup_runner(self):
         self.runner = runner.RunnerBlock(common_classes.AttackSample)
-        self.runner.set_target(self.target)
+        self.runner.set_target(self._target)
         self.runner.set_table(self.table)
 
 class RunnerAsyncSetUp(test_bforce.BForceSetUp):
     def setup_runner(self):
         self.runner = runner.RunnerAsync(common_classes.AttackAsyncSample)
-        self.runner.set_target(self.target)
+        self.runner.set_target(self._target)
         self.runner.set_table(self.table)
 
 

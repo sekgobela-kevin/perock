@@ -14,38 +14,38 @@ from perock.attack import Attack, AttackAsync, AttackBytes, AttackBytesAsync
 class SampleAttack(Attack):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
-        self.target: Target
-        self.responce: Responce
+        self._target: Target
+        self._responce: Responce
         self.request_should_fail = False
     
     def request(self):
         if not self.request_should_fail:
-            account = Account(self.data)
-            return self.target.login(account)
+            account = Account(self._data)
+            return self._target.login(account)
         else:
             return Exception()
 
     def success(self):
         if self.target_reached():
             if not self.errors():
-                return "unlocked" in self.responce.get_message()
+                return "unlocked" in self._responce.get_message()
         return False
 
     def failure(self):
         if self.target_reached():
             if not self.errors():
-                return "Failed to log" in self.responce.get_message()
+                return "Failed to log" in self._responce.get_message()
         return False
 
     def set_responce(self, responce):
-        self.responce = responce
+        self._responce = responce
 
 
 class SampleAttackBytes(AttackBytes):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
-        self.target: Target
-        self.responce: Responce
+        self._target: Target
+        self._responce: Responce
         self.request_should_fail = False
 
         self.set_success_bytes_strings(["unlocked"])
@@ -58,54 +58,54 @@ class SampleAttackBytes(AttackBytes):
 
     def responce_content(self) -> str:
         if self.target_reached():
-            return self.responce.get_message()
+            return self._responce.get_message()
         else:
-            return str(self.responce)
+            return str(self._responce)
     
     def request(self):
         if not self.request_should_fail:
-            account = Account(self.data)
-            return self.target.login(account)
+            account = Account(self._data)
+            return self._target.login(account)
         else:
             return Exception()
 
     def set_responce(self, responce):
-        self.responce = responce
+        self._responce = responce
 
 
 class SampleAttackAsync(AttackAsync):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
-        self.target: Target
+        self._target: Target
         self.request_should_fail = False
     
     async def request(self):
         if not self.request_should_fail:
-            account = Account(self.data)
-            return self.target.login(account)
+            account = Account(self._data)
+            return self._target.login(account)
         else:
             return Exception()
 
     async def success(self):
         if await self.target_reached() and not await self.errors():
-            return "unlocked" in self.responce.get_message()
+            return "unlocked" in self._responce.get_message()
         return False
 
     async def failure(self):
         if await self.target_reached():
             if not await self.errors():
-                return "Failed to log" in self.responce.get_message()
+                return "Failed to log" in self._responce.get_message()
         return False
 
     def set_responce(self, responce):
-        self.responce = responce
+        self._responce = responce
 
 
 class SampleAttackBytesAsync(AttackBytesAsync):
     def __init__(self, target, data: dict, retries=1) -> None:
         super().__init__(target, data, retries)
-        self.target: Target
-        self.responce: Responce
+        self._target: Target
+        self._responce: Responce
         self.request_should_fail = False
 
         self.set_success_bytes_strings(["unlocked"])
@@ -114,19 +114,19 @@ class SampleAttackBytesAsync(AttackBytesAsync):
 
     async def responce_content(self) -> str:
         if await self.target_reached():
-            return self.responce.get_message()
+            return self._responce.get_message()
         else:
-            return str(self.responce)
+            return str(self._responce)
     
     async def request(self):
         if not self.request_should_fail:
-            account = Account(self.data)
-            return self.target.login(account)
+            account = Account(self._data)
+            return self._target.login(account)
         else:
             return Exception()
 
     def set_responce(self, responce):
-        self.responce = responce
+        self._responce = responce
 
 
 
@@ -136,24 +136,24 @@ class CommonMethods():
     def create_attempt_objects(self):
         # Initialise attempt objects
         # Attack object is also attempt object(inheritance)
-        self.attempt = self.attack_class(self.target, self.data)
-        self.attempt2 = self.attack_class(self.target, self.data2)
-        self.attempt3 = self.attack_class(self.target, self.data3)
+        self.attempt = self.attack_class(self._target, self._data)
+        self.attempt2 = self.attack_class(self._target, self.data2)
+        self.attempt3 = self.attack_class(self._target, self.data3)
 
 
     def create_check_objects(self):
         # Initialise Check objects
         # Attack object is also Check object(inheritance)
-        self.check = self.attack_class(self.target, self.data)
-        self.check2 = self.attack_class(self.target, self.data2)
-        self.check3 = self.attack_class(self.target, self.data3)
+        self.check = self.attack_class(self._target, self._data)
+        self.check2 = self.attack_class(self._target, self.data2)
+        self.check3 = self.attack_class(self._target, self.data3)
 
 
     def create_attack_objects(self):
         # Initialises attack objects
-        self.attack = self.attack_class(self.target, self.data)
-        self.attack2 = self.attack_class(self.target, self.data2)
-        self.attack3 = self.attack_class(self.target, self.data3)
+        self.attack = self.attack_class(self._target, self._data)
+        self.attack2 = self.attack_class(self._target, self.data2)
+        self.attack3 = self.attack_class(self._target, self.data3)
 
 
 class TestAttackCommon(

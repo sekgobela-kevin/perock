@@ -1,7 +1,7 @@
 
 class Request():
     def __init__(self, data) -> None:
-        self.data = data
+        self._data = data
         self.closed = False
 
     def close(self):
@@ -42,14 +42,14 @@ class Responce():
 
 class Session():
     def __init__(self, data={}) -> None:
-        self.data = data
+        self._data = data
         self.closed = False
 
     def add_item(self, key, val):
-        self.data[key] = val
+        self._data[key] = val
 
     def get_item(self, key):
-        return self.data[key]
+        return self._data[key]
 
     def close(self):
         self.closed = True

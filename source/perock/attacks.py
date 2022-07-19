@@ -25,7 +25,7 @@ class _WebAttackMixin():
     def after_request(self):
         # Method is excuted after request completes
         if self.responce_errors():
-            self.responce_msg = self.responce.reason
+            self._responce_msg = self._responce.reason
 
     def responce_status_code(self, responce):
         # Access status code from responce
@@ -33,17 +33,17 @@ class _WebAttackMixin():
 
     @property
     def status_code(self):
-        return self.responce_status_code(self.responce)
+        return self.responce_status_code(self._responce)
 
     @property
     def text(self):
         if self.target_reached():
-            return self.responce.text
+            return self._responce.text
 
     @property
     def content(self):
         if self.target_reached():
-            return self.responce.content
+            return self._responce.content
 
     def target_errors(self):
         if self.target_reached():
@@ -67,7 +67,7 @@ class WebAttack(_WebAttackMixin, Attack):
         # dynmically import requests module
         self.requests = importlib.import_module("requests")
         self.request: self.requests.Request
-        self.responce: self.requests.Response
+        self._responce: self.requests.Response
 
     @classmethod
     def create_session(cls):
@@ -80,10 +80,10 @@ class WebAttack(_WebAttackMixin, Attack):
         if session == None:
             # session object wasnt provided
             # we then perform request direcly
-            return self.requests.post(self.target, data=self.data)
+            return self.requests.post(self._target, data=self._data)
         else:
             # session would improve request performance
-            return session.post(self.target, data=self.data)
+            return session.post(self._target, data=self._data)
 
 
     def responce_status_code(self, responce):
@@ -93,12 +93,12 @@ class WebAttack(_WebAttackMixin, Attack):
     @property
     def text(self):
         if self.target_reached():
-            return self.responce.text()
+            return self._responce.text()
 
     @property
     def content(self):
         if self.target_reached():
-            return self.responce.content()
+            return self._responce.content()
 
 
 class WebAttackAsync(_WebAttackMixin, AttackAsync):
@@ -107,7 +107,7 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
         # Dynamically import aiohttp
         self.aiohttp = importlib.import_module("aiohttp")
         self.request: self.aiohttp.ClientRequest
-        self.responce: self.aiohttp.ClientResponse
+        self._responce: self.aiohttp.ClientResponse
 
     def responce_status_code(self, responce):
         # Access status code from responce
@@ -125,11 +125,11 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
             # Creates session and perform request
             # Session is closed but responce is not
             async with self.create_session() as session:
-                return await session.post(self.target, data=self.data)
+                return await session.post(self._target, data=self._data)
         else:
             # Use existing session to improve performance
             # No need to close session as its reused(DONT)
-            return await session.post(self.target, data=self.data)
+            return await session.post(self._target, data=self._data)
 
     async def target_errors(self):
         return super().target_errors()
@@ -141,12 +141,12 @@ class WebAttackAsync(_WebAttackMixin, AttackAsync):
     @property
     async def text(self):
         if await self.target_reached():
-            return await self.responce.text()
+            return await self._responce.text()
 
     @property
     async def content(self):
         if await self.target_reached():
-            return await self.responce.content()
+            return await self._responce.content()
 
 
 
@@ -164,7 +164,7 @@ class _TestAttackMatrix():
         # Creates fake responce object from target
         class Responce():
             elapsed_time = self.sleep_time
-            request_data = self.data
+            request_data = self._data
             status = 200
             text = "This is responce text from target"
         return Responce()
