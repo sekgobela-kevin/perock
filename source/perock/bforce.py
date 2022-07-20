@@ -394,7 +394,6 @@ class BForce():
     def attack_success_callback(self, attack_object, record):
         # Callback called when theres success
         # Primary item of record is added to success primary values
-        logging.info("Target/system was unlocked: " + str(record))
         if self._table.primary_field_exists():
             primary_field = self._table.get_primary_field()
             primary_item = forcetable.get_record_primary_item(record, primary_field)
@@ -425,7 +424,7 @@ class BForce():
 
     def attack_error_callback(self, attack_object:Attack, record):
         # Callback called when theres error after attack attempt'''
-        logging.info(attack_object.get_responce_message())
+        pass
 
 
     def handle_attack_results(self, attack_object:Type[Attack], record):
@@ -818,8 +817,8 @@ class BForceBlock(BForce):
         self.consumer()
 
         
-format = "%(asctime)s: %(message)s"
-logging.basicConfig(format=format, level=logging.INFO,datefmt="%H:%M:%S")
+# format = "%(asctime)s: %(message)s"
+# logging.basicConfig(format=format, level=logging.INFO,datefmt="%H:%M:%S")
 
 
 if __name__ == "__main__":

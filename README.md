@@ -13,12 +13,12 @@ file with passwords, API requiring username and password, etc.
 All it takes is defining how to interact with the system/target and validate
 bruteforce data such as username and password. The rest will be handled you
 including when to terminate based on certain conditions which would
-save improve performance.
+improve performance.
 
 #### Pros
 - Simple and easy to get started.
 - Supports concurrency with asycio and threads.
-- Performs faster with optmisations.
+- Performs faster with optimisations.
 - General purpose(almost any bruteforce attack activity)
 - Bruteforce data can be loaded from csv and json files.
 
@@ -34,6 +34,12 @@ pip install perock
 
 ### Examples
 
+
+>Examples above requires active web server running on
+[http://127.0.0.1:5000](http://127.0.0.1:5000).  
+Source files for the web server and the examples can be found 
+[here](/examples/).
+
 #### Import neccessay modules
 ```python
 from perock import forcetable
@@ -42,6 +48,8 @@ from perock import runner
 
 import requests
 import aiohttp
+
+import asyncio
 ```
 
 #### Setup bruteforce data
@@ -50,7 +58,7 @@ import aiohttp
 usernames_field = forcetable.FieldFile("usernames", "usernames.txt")
 usernames_field.set_item_name("username")
 
-# Create with passwords
+# Create field with passwords
 passwords_field = forcetable.FieldFile("passwords", "passwords.txt")
 passwords_field.set_item_name("password")
 
@@ -109,6 +117,18 @@ class LoginPageAttack(attack.Attack):
             return self._responce.status_code != 200
         return False
 
+    def after_request(self):
+        super().after_request()
+        if self.failure():
+            #print("Attempt failed:", self._data)
+            pass
+        elif self.success():
+            print("Attempt success:", self._data)
+        elif self.errors():
+            print("Attempt errors:", self._data)
+            print("Responce message:", self._responce_msg)
+
+
 # Creates runner object to perform bruteforce
 runner_object = runner.Runner(LoginPageAttack)
 runner_object.set_target('http://127.0.0.1:5000/login')
@@ -159,6 +179,18 @@ class LoginPageAttackAsync(attack.AttackAsync):
             return self._responce.status != 200
         return False
 
+    async def after_request(self):
+        await super().after_request()
+        if await self.failure():
+            #print("Attempt failed:", self._data)
+            pass
+        elif await self.success():
+            print("Attempt success:", self._data)
+        elif await self.errors():
+            print("Attempt errors:", self._data)
+            print("Responce message:", self._responce_msg)
+
+
 
 # Creates runner object to perform bruteforce
 runner_object = runner.RunnerAsync(LoginPageAttackAsync)
@@ -169,3 +201,13 @@ runner_object.set_table(table)
 runner_object.enable_optimise()
 asyncio.run(runner_object.run())
 ```
+
+>The examples above can be easily modified based on
+[bruteforcing websites login forms](https://zsecurity.org/bruteforcing-websites-login-page-using-python/) or something unique
+and different.
+
+### Similar projects
+- [instaBrute](https://github.com/chinoogawa/instaBrute)
+- [Brute_Force](https://github.com/Matrix07ksa/Brute_Force)
+- [python-bruteForce](https://github.com/Antu7/python-bruteForce)
+- [Multi-Threaded-BruteForcer](https://github.com/nasbench/Multi-Threaded-BruteForcer)

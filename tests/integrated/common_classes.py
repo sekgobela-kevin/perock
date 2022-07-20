@@ -16,6 +16,13 @@ class AttackSample(attack.Attack):
     def success(self):
         return self._target.account_success(self.account)
 
+    def after_request(self):
+        super().after_request()
+        if self.success():
+            print("Attempt success:", self._data)
+        elif self.errors():
+            print("Attempt errors:", self._data)
+            print("Responce message:", self._responce_msg)
 
 
 
@@ -31,6 +38,14 @@ class AttackAsyncSample(attack.AttackAsync):
 
     async def success(self):
         return self._target.account_success(self.account)
+
+    async def after_request(self):
+        await super().after_request()
+        if await self.success():
+            print("Attempt success:", self._data)
+        elif await self.errors():
+            print("Attempt errors:", self._data)
+            print("Responce message:", self._responce_msg)
 
 
 

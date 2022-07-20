@@ -76,6 +76,19 @@ class LoginPageAttack(attack.Attack):
             return self._responce.status_code != 200
         return False
 
+
+    def after_request(self):
+        super().after_request()
+        if self.failure():
+            #print("Attempt failed:", self._data)
+            pass
+        elif self.success():
+            print("Attempt success:", self._data)
+        elif self.errors():
+            print("Attempt errors:", self._data)
+            print("Responce message:", self._responce_msg)
+
+
 # Creates runner object to perform bruteforce
 runner_object = runner.Runner(LoginPageAttack)
 runner_object.set_target('http://127.0.0.1:5000/login')

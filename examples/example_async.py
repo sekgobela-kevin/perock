@@ -72,6 +72,17 @@ class LoginPageAttackAsync(attack.AttackAsync):
             return self._responce.status != 200
         return False
 
+    async def after_request(self):
+        await super().after_request()
+        if await self.failure():
+            #print("Attempt failed:", self._data)
+            pass
+        elif await self.success():
+            print("Attempt success:", self._data)
+        elif await self.errors():
+            print("Attempt errors:", self._data)
+            print("Responce message:", self._responce_msg)
+
 
 # Creates runner object to perform bruteforce
 runner_object = runner.RunnerAsync(LoginPageAttackAsync)

@@ -31,9 +31,10 @@ def group_generator(generator, group_size):
 def split_iterator(iterator, split_size):
     return iter(group_generator(iterator, split_size))
 
-def iscallable(referance):
-    # Returns True if referance is callable
-    type_str = str(type(referance))
+def iscallable(__obj):
+    # Returns True if object is callable
+    #return callable(__obj)
+    type_str = str(type(__obj))
     if "function" in type_str:
         return True
     elif "method" in type_str:
