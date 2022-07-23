@@ -25,7 +25,7 @@ from . import util
 class Field():
     '''Class for operating with field data. Column data  
     may include things like 'passwords', 'usernames', etc.'''
-    def __init__(self, name, items) -> None:
+    def __init__(self, name: str, items: Iterator, read_all=False):
         '''
         Creates Field object
         Parameters
@@ -34,16 +34,24 @@ class Field():
             Name of field
         items: Iterator
             Iterator or callable returning items of field
+        read_all: bool
+            True if should read all items to memory at once.
         '''
         # Stores items of field, e.g 'passwords'
         self._items = items
         # Name of field
         self._name = name
+        # Decides if items should be read to memory at once
+        self._read_all = read_all
         # Name of each item of field
         # Usually singular of coulun name e.g 'password'
         self._item_name = None
 
         self._primary = False
+
+        if self._read_all:
+            # Reads all items into list
+            self._items = list(self.read_items())
 
     def __iter__(self) -> Iterator:
         return iter(self.get_items())
@@ -61,12 +69,23 @@ class Field():
         '''Returns True if items are in callable'''
         return util.iscallable(self._items)
 
-    def get_items(self):
-        '''Returns items of field'''
+    def read_items(self) -> Iterator:
+        # Reads and returns items of field object
+        # Realise that items may be exausated if in iterator
         if self.items_callable():
             return self._items()
         else:
             return self._items
+
+
+    def get_items(self):
+        '''Returns items of field'''
+        if (not self.items_callable()) or self._read_all:
+            # Return items if items is not callable or 
+            # self._read_all is True.
+            return self._items
+        else:
+            return self.read_items()
 
     
     def get_name(self):

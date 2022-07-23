@@ -51,6 +51,9 @@ class TestFieldCommon():
         self.field.set_item_name("name")
         self.assertEqual(self.field.get_item_name(), "name")
 
+    def test_read_items(self):
+        self.assertEqual(self.field.read_items(), self.items)
+
     def test_get_items(self):
         self.assertEqual(self.field.get_items(), self.items)
     

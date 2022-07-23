@@ -100,7 +100,11 @@ class TestFieldFileCommon(ForcetableSetUp, unittest.TestCase):
         # with itself.
         # There will be problems with file positions.
 
-        # THis assert tests for restriction.
+        # Setting read_all=True on Field solves the problem.
+        # That causes whole file lines to be read to list.
+        # Which avoid having to direcly read from file object. 
+
+        # This assert tests for restriction.
         self.assertLess(len(list(_product)), len(list(_expected_product)))
 
     def test_with_itertools_product_second(self):
