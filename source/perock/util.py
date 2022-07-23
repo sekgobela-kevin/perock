@@ -11,6 +11,8 @@ import functools
 
 
 async def to_thread(func, /, *args, **kwargs):
+    # https://github.com/python/cpython/blob/main/Lib/asyncio/
+    # threads.py#L12
     loop = asyncio.get_running_loop()
     ctx = contextvars.copy_context()
     func_call = functools.partial(ctx.run, func, *args, **kwargs)

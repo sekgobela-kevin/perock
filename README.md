@@ -38,7 +38,7 @@ pip install perock
 >Examples above requires active web server running on
 [http://127.0.0.1:5000](http://127.0.0.1:5000).  
 Source files for the web server and the examples can be found 
-[here](/examples/).
+[here](https://github.com/Sekgobela-Kevin/perock/tree/main/examples).
 
 #### Import neccessay modules
 ```python
