@@ -1,6 +1,6 @@
 import unittest
 import asyncio
-import timeout_decorator
+#import timeout_decorator
 
 import test_bforce
 import common_classes
@@ -50,32 +50,32 @@ class RunnerAsyncSetUp(test_bforce.BForceSetUp):
 
 
 class RunnerCommonTest(RunnerSetUp):
-    @timeout_decorator.timeout(12)
+    #@timeout_decorator.timeout(12)
     def test_start_not_optimised(self):
         self.runner.disable_optimise()
         self.start()
         self.assertCountEqual(self.runner.get_success_records(), self.accounts)
 
-    @timeout_decorator.timeout(10)
+    #@timeout_decorator.timeout(10)
     def test_start_optimised(self):
         self.runner.enable_optimise()
         self.start()
         self.assertCountEqual(self.runner.get_success_records(), self.accounts)
 
-    @timeout_decorator.timeout(5)
+    #@timeout_decorator.timeout(5)
     def test_start_cancel_immediately(self):
         self.runner.enable_cancel_immediately()
         self.start()
         self.assertEqual(len(self.runner.get_success_records()), 1)
 
-    @timeout_decorator.timeout(5)
+    #@timeout_decorator.timeout(5)
     def test_set_max_success_records(self):
         self.runner.set_max_success_records(1)
         self.start()
         self.assertEqual(len(self.runner.get_success_records()), 1)
 
 
-    @timeout_decorator.timeout(5)
+    #@timeout_decorator.timeout(5)
     def test_set_executor(self):
         # Proccess executor wont work on threaded environment
         self.runner.set_executor(self.process_executor)
@@ -89,7 +89,7 @@ class RunnerCommonTest(RunnerSetUp):
         self.assertEqual(len(self.runner.get_success_records()), 1)
         
 
-    @timeout_decorator.timeout(5)
+    #@timeout_decorator.timeout(5)
     def test_other_methods(self):
         self.runner.enable_cancel_immediately()
         self.runner.set_max_parallel_primary_tasks(10)
