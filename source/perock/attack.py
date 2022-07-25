@@ -346,14 +346,18 @@ class AttackAsync(AttemptAsync, CheckAsync):
         return not results
 
     async def confused_action(self):
+        target_reached = await self.target_reached()
+        errors = await self.errors()
+        failuure = await self.failure()
+        success = await self.success()
         err_msg = f'''
         Not sure if attack failed or was success(confused)
 
         Record/Data: {self._data}
-        Target Reached: {await self.target_reached()}
-        Errors: {await self.errors()}
-        Failed: {await self.failure()}
-        Success: {await self.success()}
+        Target Reached: {target_reached}
+        Errors: {errors}
+        Failed: {failuure}
+        Success: {success}
         '''
         raise Exception(err_msg)   
 

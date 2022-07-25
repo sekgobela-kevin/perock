@@ -10,7 +10,7 @@ import contextvars
 import functools
 
 
-async def to_thread(func, /, *args, **kwargs):
+async def to_thread(func, *args, **kwargs):
     # https://github.com/python/cpython/blob/main/Lib/asyncio/
     # threads.py#L12
     loop = asyncio.get_running_loop()
