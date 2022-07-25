@@ -1,3 +1,5 @@
 requests
 aiohttp
 timeout-decorator
+meinheld
+tox

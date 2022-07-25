@@ -1,10 +1,12 @@
-from typing import Dict
 from flask import Flask, redirect, url_for
 from flask import render_template
 from flask import session
 from flask import request
 from flask import g
-#from multiprocessing.managers import BaseManager
+
+import meinheld
+
+from typing import Dict
 import json
 import os
 
@@ -63,5 +65,5 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.debug = True
-    app.run(threaded=True)
+    meinheld.listen(("127.0.0.1", 5000))
+    meinheld.run(app)
