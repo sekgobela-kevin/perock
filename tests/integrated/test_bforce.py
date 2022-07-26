@@ -2,9 +2,9 @@ import unittest
 import asyncio
 from concurrent import futures
 
-from common_classes import AttackSample
-from common_classes import AttackAsyncSample
-from common_test import CommonTest
+from .common_classes import AttackSample
+from .common_classes import AttackAsyncSample
+from .common_test import CommonTest
 
 from perock.target import Account
 from perock.target import Target

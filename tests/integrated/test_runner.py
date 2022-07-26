@@ -3,8 +3,8 @@ import unittest
 import asyncio
 #import timeout_decorator
 
-import test_bforce
-import common_classes
+from . import test_bforce
+from . import common_classes
 
 from perock import runner
 from perock import attack

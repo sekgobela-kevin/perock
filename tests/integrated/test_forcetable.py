@@ -2,7 +2,7 @@ import unittest
 import itertools
 import os
 
-from common_test import CommonTest
+from .common_test import CommonTest
 from perock import forcetable
 
 
