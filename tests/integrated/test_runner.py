@@ -1,3 +1,4 @@
+import typing
 import unittest
 import asyncio
 #import timeout_decorator
@@ -6,6 +7,8 @@ import test_bforce
 import common_classes
 
 from perock import runner
+from perock import attack
+from perock import bforce
 
 # Tests for this test module are based non IO blocking activity.
 # It involves bruteforce with passwords and usernames from file system.
@@ -23,12 +26,15 @@ from perock import runner
 # as performing internet request.
 
 
-class RunnerSetUp(test_bforce.BForceSetUp):
+class RunnerBaseSetUp(test_bforce.BForceSetUp):
+    attack_class: typing.Type[attack.Attack]
+    bforce_class: typing.Type[bforce.BForceBase]
+
     def setup_bforce_object(self):
         self.setup_runner()
 
     def setup_runner(self):
-        self.runner = runner.Runner(common_classes.AttackSample)
+        self.runner = self.bforce_class(self.attack_class)
         self.runner.set_target(self._target)
         self.runner.set_table(self.table)
     
@@ -36,20 +42,19 @@ class RunnerSetUp(test_bforce.BForceSetUp):
         # Calls .run() of runner object
         self.runner.run()
 
-class RunnerBlockSetUp(test_bforce.BForceSetUp):
-    def setup_runner(self):
-        self.runner = runner.RunnerBlock(common_classes.AttackSample)
-        self.runner.set_target(self._target)
-        self.runner.set_table(self.table)
+class RunnerBlockSetUp(RunnerBaseSetUp):
+    attack_class = common_classes.AttackSample
+    bforce_class = runner.RunnerBlock
 
-class RunnerAsyncSetUp(test_bforce.BForceSetUp):
-    def setup_runner(self):
-        self.runner = runner.RunnerAsync(common_classes.AttackAsyncSample)
-        self.runner.set_target(self._target)
-        self.runner.set_table(self.table)
+class RunnerAsyncSetUp(RunnerBaseSetUp):
+    attack_class = common_classes.AttackAsyncSample
+    bforce_class = runner.RunnerAsync
+
+    def start(self):
+        asyncio.run(self.runner.start())
 
 
-class RunnerCommonTest(RunnerSetUp):
+class RunnerBaseCommonTest(RunnerBaseSetUp):
     #@timeout_decorator.timeout(12)
     def test_start_not_optimised(self):
         self.runner.disable_optimise()
@@ -73,22 +78,17 @@ class RunnerCommonTest(RunnerSetUp):
         self.runner.set_max_success_records(1)
         self.start()
         self.assertEqual(len(self.runner.get_success_records()), 1)
-
-
-    #@timeout_decorator.timeout(5)
-    def test_set_executor(self):
-        # Proccess executor wont work on threaded environment
-        self.runner.set_executor(self.process_executor)
-        with self.assertRaises(TypeError):
-            # cannot pickle '_thread._local' object
-            self.start()
-
-        self.runner.enable_cancel_immediately()
-        self.runner.set_executor(self.thread_executor)
-        self.start()
-        self.assertEqual(len(self.runner.get_success_records()), 1)
         
 
+    #@timeout_decorator.timeout(5)
+    def test_other_methods(self):
+        self.runner.enable_cancel_immediately()
+        self.runner.set_max_parallel_primary_tasks(10)
+        self.start()
+        self.assertEqual(len(self.runner.get_success_records()), 1)
+
+
+class RunnerParallelCommonTest(RunnerBaseCommonTest):
     #@timeout_decorator.timeout(5)
     def test_other_methods(self):
         self.runner.enable_cancel_immediately()
@@ -99,36 +99,41 @@ class RunnerCommonTest(RunnerSetUp):
         self.assertEqual(len(self.runner.get_success_records()), 1)
 
 
-class RunnerBlockCommonTest(RunnerBlockSetUp, RunnerCommonTest):
+class RunnerExecutorCommonTest(RunnerParallelCommonTest):
+    pass
+
+class RunnerThreadCommonTest(RunnerExecutorCommonTest):
+    attack_class = common_classes.AttackSample
+    bforce_class = runner.RunnerThread
+
+
+class RunnerBlockCommonTest(RunnerBlockSetUp, RunnerBaseCommonTest):
     def setUp(self):
         super().setUp()
-        RunnerCommonTest.setUp(self)
+        RunnerBaseCommonTest.setUp(self)
 
     def test_set_executor(self):
         # RunnerBlock does not use executor
         pass
 
-class RunnerAsyncCommonTest(RunnerAsyncSetUp, RunnerCommonTest):
+
+class RunnerAsyncCommonTest(RunnerAsyncSetUp, RunnerParallelCommonTest):
     def setUp(self):
         super().setUp()
-        RunnerCommonTest.setUp(self)
-
-    def start(self):
-        asyncio.run(self.runner.run())
-
-    def test_set_executor(self):
-        # RunnerAsync does not use executor
-        pass
+        RunnerParallelCommonTest.setUp(self)
 
 
-class RunnerTest(RunnerCommonTest, unittest.TestCase):
-   pass
 
 class RunnerBlockTest(RunnerBlockCommonTest, unittest.TestCase):
    pass
 
-class RunnerBlockTest(RunnerAsyncCommonTest, unittest.TestCase):
+class RunnerAsyncTest(
+    RunnerAsyncCommonTest, 
+    unittest.IsolatedAsyncioTestCase):
     pass
+
+class RunnerTest(RunnerThreadCommonTest, unittest.TestCase):
+   pass
 
 
 if __name__ == '__main__':

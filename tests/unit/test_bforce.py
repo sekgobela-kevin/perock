@@ -1,7 +1,9 @@
+import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Executor
-import queue
+from concurrent.futures import Future
+from typing import Type
 import unittest
 
 
@@ -41,9 +43,9 @@ class SampleAttackAsync(SampleAttackAsync):
         return Session()
 
 
-class TestBForceSetUP(TestTableSetUp, TestAttemptSetUp):
-    bforce_class = BForce
-    attack_class = SampleAttack
+class TestBForceBaseSetUP(TestTableSetUp, TestAttemptSetUp):
+    bforce_class: Type[BForce]
+    attack_class: Type[SampleAttack]
 
     @classmethod
     def setUpClass(cls):
@@ -63,7 +65,7 @@ class TestBForceSetUP(TestTableSetUp, TestAttemptSetUp):
         self.bforce_raw = self.bforce_class(self._target, self.table)
 
 
-class TestBForceCommon(TestBForceSetUP):
+class TestBForceBaseCommon(TestBForceBaseSetUP):
     def test_enable_cancel_immediately(self):
         self.bforce.enable_cancel_immediately()
 
@@ -72,29 +74,6 @@ class TestBForceCommon(TestBForceSetUP):
 
     def test_set_max_success_records(self):
         self.bforce.set_max_success_records(10)
-
-    def test_set_executor(self):
-        self.bforce.set_executor(self.process_executor)
-        self.assertEqual(self.bforce.get_executor(), self.process_executor)
-
-
-    def test_get_executor(self):
-        self.bforce.set_executor(self.process_executor)
-        self.assertEqual(self.bforce.get_executor(), self.process_executor)
-
-    def test_set_max_workers(self):
-        self.bforce.set_max_workers(2)
-
-    def test_create_or_get_executor(self):
-        self.assertIsInstance(self.bforce.create_or_get_executor(), 
-        ThreadPoolExecutor)
-        self.bforce.set_executor(self.process_executor)
-        self.assertEqual(self.bforce.create_or_get_executor(), 
-        self.process_executor)
-
-    def test_set_max_parallel_tasks(self):
-        # Hard to test
-        self.bforce.set_max_parallel_tasks(10)
 
 
     def test_create_session(self):
@@ -109,13 +88,14 @@ class TestBForceCommon(TestBForceSetUP):
         self.bforce.close_session()
         self.assertTrue(self.bforce.get_session().closed)
 
+    def session_exists(self):
+        self.bforce.set_session(self._session)
+        self.assertTrue(self.bforce.session_exists())
+        self.assertFalse(self.bforce_raw.session_exists())
 
     def test_get_session(self):
-        with self.assertRaises(AttributeError):
-            # Theres no attack class in bforce_raw
-            # Its better to set session manually
-            self.bforce_raw.get_session()
-        #self.assertEqual(self.bforce_raw.get_session(), None)
+        self.assertEqual(self.bforce_raw.get_session(), None)
+        self.bforce.set_session(self._session)
         self.assertIsInstance(self.bforce.get_session(), Session)
         # Same session be returned
         session = self.bforce.get_session()
@@ -127,9 +107,6 @@ class TestBForceCommon(TestBForceSetUP):
 
     def test_get_attack_class(self):
         self.assertEqual(self.bforce.get_attack_class(), self.attack_class)
-
-    def test_attack_class_async(self):
-        self.assertFalse(self.bforce.attack_class_async())
 
     def test_create_attack_object(self):
         attack_object = self.bforce.create_attack_object(self._data)
@@ -148,40 +125,80 @@ class TestBForceCommon(TestBForceSetUP):
         self.bforce.set_max_parallel_primary_tasks(10)
 
 
-    def test_clear_queue(self):
-        queue_object = queue.Queue(10)
-        for i in range(10):
-            queue_object.put(i)
-        self.bforce.clear_queue(queue_object)
-        self.assertTrue(queue_object.empty())
-
-
     def test_start(self):
         # This is not a test but call to method
         self.bforce.start()
 
 
 
-class TestBForceAsyncCommon(TestBForceCommon):
-    bforce_class = BForceAsync
-    attack_class = SampleAttackAsync
+class TestBForceParallelCommon(TestBForceBaseSetUP):
+    def test_set_max_workers(self):
+        self.bforce.set_max_workers(2)
 
-    def test_set_attack_class(self):
-        self.bforce_raw.set_attack_class(self.attack_class)
-        self.assertEqual(self.bforce_raw.get_attack_class(), self.attack_class)
+    def test_set_max_parallel_tasks(self):
+        # Hard to test
+        self.bforce.set_max_parallel_tasks(10)
 
-    def test_get_attack_class(self):
-        self.assertEqual(self.bforce.get_attack_class(), self.attack_class)
+    def test_to_future(self):
+        raise NotImplementedError
 
-    def test_attack_class_async(self):
-        self.assertTrue(self.bforce.attack_class_async())
+    def test_handle_attack_recursive_future(self):
+        raise NotImplementedError
 
-    def test_create_attack_object(self):
-        attack_object = self.bforce.create_attack_object(self._data)
-        self.assertIsInstance(attack_object, self.attack_class)
-        with self.assertRaises(AttributeError):
-            # bforce_raw does not hae attack class
-            self.bforce_raw.create_attack_object(self._data)
+    def test_wait_tasks(self):
+        raise NotImplementedError
+
+
+class TestBForceExecutorCommon(TestBForceParallelCommon):
+    def test_set_executor(self):
+        self.bforce.set_executor(self.process_executor)
+        self.assertEqual(self.bforce.get_executor(), self.process_executor)
+
+    def test_get_executor(self):
+        self.bforce.set_executor(self.process_executor)
+        self.assertEqual(self.bforce.get_executor(), self.process_executor)
+
+
+    def test_create_default_executor(self):
+        executor = self.bforce.create_default_executor()
+        self.assertIsInstance(executor, Executor)
+
+    def test_create_get_executor(self):
+        self.assertIsInstance(self.bforce.create_get_executor(), 
+        ThreadPoolExecutor)
+        self.bforce.set_executor(self.process_executor)
+        self.assertEqual(self.bforce.create_get_executor(), 
+        self.process_executor)
+
+    def test_to_future(self):
+        with self.bforce.create_default_executor() as executor:
+            self.bforce.set_executor(executor)
+            future = self.bforce.to_future(lambda : None)
+            self.assertIsInstance(future, Future)
+
+    def test_handle_attack_recursive_future(self):
+        with self.bforce.create_default_executor() as executor:
+            self.bforce.set_executor(executor)
+            future = self.bforce.handle_attack_recursive_future(
+                self.common_record)
+            self.assertIsInstance(future, Future)
+
+    def test_wait_tasks(self):
+        with self.bforce.create_default_executor() as executor:
+            self.bforce.set_executor(executor)
+            future1 = self.bforce.to_future(lambda : None)
+            future2 = self.bforce.to_future(lambda : None)
+            self.bforce.wait_tasks([future1, future2])
+
+
+class TestBForceThreadCommon(TestBForceExecutorCommon):
+    bforce_class = BForce
+    attack_class = SampleAttack
+
+
+class TestBForceAsyncCommon(TestBForceParallelCommon):
+    bforce_class: Type[BForceAsync] = BForceAsync
+    attack_class: Type[SampleAttackAsync] = SampleAttackAsync
 
     async def test_create_session(self):
         with self.assertRaises(AttributeError):
@@ -197,24 +214,37 @@ class TestBForceAsyncCommon(TestBForceCommon):
         self.assertTrue(session.closed)
 
 
-    async def test_get_session(self):
-        with self.assertRaises(AttributeError):
-            # Theres no attack class in bforce_raw
-            # Its better to set session manually
-            await self.bforce_raw.get_session()
-        #self.assertEqual(self.bforce_raw.get_session(), None)
-        self.assertIsInstance(await self.bforce.get_session(), Session)
-        # Same session be returned
-        session = await self.bforce.get_session()
-        self.assertEqual(await self.bforce.get_session(), session)
+    async def test_to_future(self):
+        async def async_func():
+            pass
+        future = self.bforce.to_future(async_func)
+        self.assertIsInstance(future, asyncio.Task)
+
+    async def test_handle_attack_recursive_future(self):
+        future = self.bforce.handle_attack_recursive_future(
+            self.common_record)
+        self.assertIsInstance(future, asyncio.Task)
+
+    async def test_wait_tasks(self):
+        async def async_func():
+            pass
+        future1 = self.bforce.to_future(async_func)
+        future2 = self.bforce.to_future(async_func)
+        await self.bforce.wait_tasks([future1, future2])
+        # Theres no way to assert the method
+        # Its better to just test if exceptions get raised
+
 
     async def test_start(self):
         # This is not a test but call to method
         await self.bforce.start()
 
 
-class TestBForce(TestBForceCommon, unittest.TestCase):
+class TestBForce(TestBForceThreadCommon, unittest.TestCase):
     pass
 
-class TestBForceAsync(TestBForceAsyncCommon, unittest.IsolatedAsyncioTestCase):
+
+class TestBForceAsync(
+    TestBForceAsyncCommon, 
+    unittest.IsolatedAsyncioTestCase):
     pass

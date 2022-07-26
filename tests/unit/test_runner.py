@@ -5,13 +5,13 @@ from perock.runner import *
 
 from .test_bforce import SampleAttack
 from .test_bforce import SampleAttackAsync
-from .test_bforce import TestBForceSetUP
+from .test_bforce import TestBForceBaseSetUP
 
 
-class TestRunnerSetUp(TestBForceSetUP):    
-    bforce_class = BForce
+class TestRunnerBaseSetUp(TestBForceBaseSetUP):    
+    bforce_class = BForceBase
     attack_class = SampleAttack
-    runner_class = Runner
+    runner_class = RunnerBase
 
     def setUp(self):
         super().setUp()
@@ -31,18 +31,20 @@ class TestRunnerSetUp(TestBForceSetUP):
 
 
 
-class TestRunnerAsyncSetUp(TestBForceSetUP):
+class TestRunnerAsyncSetUp(TestRunnerBaseSetUp):
     bforce_class = BForceAsync
     attack_class = SampleAttackAsync
     runner_class = RunnerAsync
 
-class TestRunnerBlockSetUp(TestBForceSetUP):
+class TestRunnerBlockSetUp(TestRunnerBaseSetUp):
     bforce_class = BForceBlock
     attack_class = SampleAttack
     runner_class = RunnerBlock
 
 
-class TestRunnerCommon(TestRunnerSetUp):
+
+
+class TestRunnerBaseCommon(TestRunnerBaseSetUp):
     # This class does not test the methods but just calls them.
     # Its just a check if the methods raises error.
     def test_set_target(self):
@@ -66,16 +68,6 @@ class TestRunnerCommon(TestRunnerSetUp):
     def test_disable_optimise(self):
         self.runner.disable_optimise()
 
-    def test_set_max_parallel_tasks(self):
-        self.runner.set_max_parallel_tasks(100)
-
-    def test_set_max_workers(self):
-        self.runner.set_max_workers(10)
-
-    def test_set_executor(self):
-        self.runner.set_max_workers(self.thread_executor)
-        self.runner.set_max_workers(self.process_executor)
-
     def test_get_success_records(self):
         self.runner.get_success_records()
 
@@ -95,11 +87,30 @@ class TestRunnerCommon(TestRunnerSetUp):
         self.runner.run()
 
 
-class TestRunnerBlockCommon(TestRunnerBlockSetUp, TestRunnerCommon):
+class TestRunnerParallel(TestRunnerBaseCommon):
+    def test_set_max_parallel_tasks(self):
+        self.runner.set_max_parallel_tasks(100)
+
+    def test_set_max_workers(self):
+        self.runner.set_max_workers(10)
+
+
+class TestRunnerExecutorCommon(TestRunnerBaseCommon):
+    def test_set_executor(self):
+        self.runner.set_executor(self.thread_executor)
+
+
+class TestRunnerThreadCommon(TestRunnerExecutorCommon):
+    bforce_class = BForceThread
+    attack_class = SampleAttack
+    runner_class = RunnerThread
+
+
+class TestRunnerBlockCommon(TestRunnerBlockSetUp, TestRunnerBaseCommon):
     pass
 
 
-class TestRunnerAsyncCommon(TestRunnerAsyncSetUp, TestRunnerCommon):
+class TestRunnerAsyncCommon(TestRunnerAsyncSetUp, TestRunnerBaseCommon):
     async def test_start(self):
         await self.runner.start()
 
@@ -108,11 +119,16 @@ class TestRunnerAsyncCommon(TestRunnerAsyncSetUp, TestRunnerCommon):
 
 
 
-class TestRunner(TestRunnerCommon, unittest.TestCase):
+class TestRunnerThread(TestRunnerThreadCommon, unittest.TestCase):
+    pass
+
+class TestRunner(TestRunnerThreadCommon, unittest.TestCase):
     pass
 
 class TestRunnerBlock(TestRunnerBlockCommon, unittest.TestCase):
     pass
 
-class TestRunnerAsync(TestRunnerAsyncCommon, unittest.IsolatedAsyncioTestCase):
+class TestRunnerAsync(
+    TestRunnerAsyncCommon, 
+    unittest.IsolatedAsyncioTestCase):
     pass

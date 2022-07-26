@@ -23,13 +23,14 @@ from . import bforce
 from . import forcetable
 
 
-class Runner():
-    '''Runs bruteforce attack on target using threads'''
+class RunnerBase():
+    '''Base class for running bruteforce attack on target'''
     def __init__(self, 
     attack_class: Type[attack.Attack], 
-    bforce_class=bforce.BForce) -> None:
+    bforce_class: bforce.BForceBase) -> None:
         self._attack_class = attack_class
         self._bforce_class = bforce_class
+        self._bforce: bforce_class
 
         self._target = None
         self._table: forcetable.Table = None
@@ -38,11 +39,7 @@ class Runner():
         self._cancel_immediately = False
         self._max_success_records: int = None
 
-        self._max_parallel_tasks: int = None
         self._max_parallel_primary_tasks: int = None
-        self._max_workers: int = None
-
-        self._executor: futures.Executor = None
         self._success_records = list()
 
     def set_target(self, target):
@@ -77,18 +74,6 @@ class Runner():
         '''Sets maximum success records to cancel/stop attack'''
         self._max_success_records = total
 
-    def set_max_parallel_tasks(self, total_tasks: int):
-        '''Sets maximum number of tasks to run in parallel'''
-        self._max_parallel_tasks = total_tasks
-
-    def set_max_workers(self, max_workers: int):
-        '''Sets maximum workers to use to execute tasks in parallel'''
-        self._max_workers = max_workers
-
-    def set_executor(self, executor):
-        '''Sets executor to use to execute tasks'''
-        self._executor = executor
-
     def set_max_parallel_primary_tasks(self, total):
         '''Set maxumum primary items to execute in parrallel'''
         self._max_parallel_primary_tasks = total
@@ -113,50 +98,100 @@ class Runner():
             self._target, self._table, self._optimise
         )
         bforce.set_attack_class(self._attack_class)
+        return bforce
 
-        # Now the object is created
-        # Its time to set some attributes on it
-        # But should set them only when neccessay
-        if self._max_workers != None:
-            bforce.set_max_workers(self._max_workers)
-        if self._max_parallel_tasks != None:
-            bforce.set_max_parallel_tasks(self._max_parallel_tasks)
-        if self._executor != None:
-            bforce.set_executor(self._executor)
+    def _after_create_bforce_object(self):
+        # Method is called after creating bforce object
+        # Its safe to access self._bforce
+        # This method body sets/updates attributes of self._bforce
         if self._max_parallel_primary_tasks != None:
-            bforce.set_max_parallel_primary_tasks(
+            self._bforce.set_max_parallel_primary_tasks(
                 self._max_parallel_primary_tasks
             )
 
-        # What should happen if _cancel_immediately and _max_success_records
-        # are being set?
-        # I guess _cancel_immediately imediately will take precidence.
-        # Disabling _cancel_immediately shouldnt clear _max_success_records
         if self._cancel_immediately != None:
             if self._cancel_immediately:
-                bforce.enable_cancel_immediately()
+                self._bforce.enable_cancel_immediately()
             else:
-                bforce.disable_cancel_immediately()
+                self._bforce.disable_cancel_immediately()
         if self._max_success_records != None:
-            bforce.set_max_success_records(self._max_success_records)
-        return bforce
+            self._bforce.set_max_success_records(self._max_success_records)
 
-    def _after_request(self, bforce: bforce.BForce):
+    def _setup_before_object(self):
+        # Setup bforce object to use with nunner
+        self._bforce = self._create_bforce_object()
+        self._after_create_bforce_object()
+
+    def _after_attack(self):
         # Method called after self.start() completes
-        self._success_records = bforce.get_success_records()
+        self._success_records = self._bforce.get_success_records()
 
 
     def start(self):
-        bforce_object = self._create_bforce_object()
-        bforce_object.start()
-        self._after_request(bforce_object)
+        self._setup_before_object()
+        self._bforce.start()
+        self._after_attack()
 
     def run(self):
         '''Entry point to starting attack on target'''
         self.start()
 
 
-class RunnerAsync(Runner):
+class RunnerParallel(RunnerBase):
+    '''Base class for running bruteforce attack in parallel'''
+    def __init__(
+        self, 
+        attack_class: Type[attack.Attack], 
+        bforce_class: bforce.BForceBase) -> None:
+        super().__init__(attack_class, bforce_class)
+        self._max_parallel_tasks: int = None
+        self._max_workers: int = None
+
+    def set_max_parallel_tasks(self, total_tasks: int):
+        '''Sets maximum number of tasks to run in parallel'''
+        self._max_parallel_tasks = total_tasks
+
+    def set_max_workers(self, max_workers: int):
+        '''Sets maximum workers to use to execute tasks in parallel'''
+        self._max_workers = max_workers
+
+    def _after_create_bforce_object(self):
+        super()._after_create_bforce_object()
+        if self._max_workers != None:
+            self._bforce.set_max_workers(self._max_workers)
+        if self._max_parallel_tasks != None:
+            self._bforce.set_max_parallel_tasks(self._max_parallel_tasks)
+
+
+class RunnerExecutor(RunnerParallel):
+    '''Runs bruteforce attack on parallel using executor'''
+    def __init__(
+        self, 
+        attack_class: Type[attack.Attack], 
+        bforce_class: bforce.BForceBase) -> None:
+        super().__init__(attack_class, bforce_class)
+        self._executor: futures.Executor = None
+
+    def set_executor(self, executor):
+        '''Sets executor to use to execute tasks'''
+        self._executor = executor
+
+    def _after_create_bforce_object(self):
+        super()._after_create_bforce_object()
+        if self._executor != None:
+            self._bforce.set_executor(self._executor)
+
+
+class RunnerThread(RunnerExecutor):
+    '''Runs bruteforce attack using threads'''
+    def __init__(
+        self, 
+        attack_class: Type[attack.Attack], 
+        bforce_class=bforce.BForceThread) -> None:
+        super().__init__(attack_class, bforce_class)
+
+
+class RunnerAsync(RunnerParallel):
     '''Runs bruteforce attack on target using asyncio'''
     def __init__(self, 
     attack_class: Type[attack.AttackAsync], 
@@ -164,14 +199,15 @@ class RunnerAsync(Runner):
         super().__init__(attack_class, bforce_class)
 
     async def start(self):
-        bforce_object = self._create_bforce_object()
-        await bforce_object.start()
-        self._after_request(bforce_object)
+        self._setup_before_object()
+        await self._bforce.start()
+        self._after_attack()
 
     async def run(self):
         await self.start()
 
-class RunnerBlock(Runner):
+
+class RunnerBlock(RunnerBase):
     '''Runs bruteforce attack on target synchronously(blocking)'''
     def __init__(self, 
     attack_class: Type[attack.Attack], 
@@ -179,6 +215,15 @@ class RunnerBlock(Runner):
         super().__init__(attack_class, bforce_class)
 
 
+class Runner(RunnerThread):
+    '''High level runner for running bruteforce likely using threads
+    
+    Its reccommended to use RunnerThread instead of this class for
+    bruteforce using thread. Its not guaranteed that it will always
+    use threads, it may be changed to use something else.'''
+
+    def __init__(self, attack_class: Type[attack.Attack]) -> None:
+        super().__init__(attack_class)
 
 
 if __name__ == "__main__":
