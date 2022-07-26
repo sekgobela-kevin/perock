@@ -1,7 +1,9 @@
 import typing
 import unittest
 import asyncio
+
 #import timeout_decorator
+import aiounittest
 
 from . import test_bforce
 from . import common_classes
@@ -51,7 +53,10 @@ class RunnerAsyncSetUp(RunnerBaseSetUp):
     bforce_class = runner.RunnerAsync
 
     def start(self):
-        asyncio.run(self.runner.start())
+        # This is for supporting python 3.6
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.runner.start())
+        loop.close()
 
 
 class RunnerBaseCommonTest(RunnerBaseSetUp):
@@ -129,7 +134,7 @@ class RunnerBlockTest(RunnerBlockCommonTest, unittest.TestCase):
 
 class RunnerAsyncTest(
     RunnerAsyncCommonTest, 
-    unittest.IsolatedAsyncioTestCase):
+    aiounittest.AsyncTestCase):
     pass
 
 class RunnerTest(RunnerThreadCommonTest, unittest.TestCase):

@@ -1,4 +1,5 @@
 import unittest
+import aiounittest
 
 from perock.bforce import *
 from perock.runner import *
@@ -128,7 +129,5 @@ class TestRunner(TestRunnerThreadCommon, unittest.TestCase):
 class TestRunnerBlock(TestRunnerBlockCommon, unittest.TestCase):
     pass
 
-class TestRunnerAsync(
-    TestRunnerAsyncCommon, 
-    unittest.IsolatedAsyncioTestCase):
+class TestRunnerAsync(TestRunnerAsyncCommon, aiounittest.AsyncTestCase):
     pass

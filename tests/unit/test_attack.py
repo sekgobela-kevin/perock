@@ -1,4 +1,5 @@
 import unittest
+import aiounittest
 
 from .test_attempt import TestAttemptCommon
 from .test_attempt import TestAttemptAsyncCommon
@@ -216,12 +217,12 @@ class TestAttack(TestAttackCommon, unittest.TestCase):
 class TestAttackBytes(TestAttackBytesCommon, unittest.TestCase):
     pass
 
-class TestAttackAsync(TestAttackAsyncCommon, unittest.IsolatedAsyncioTestCase):
+class TestAttackAsync(TestAttackAsyncCommon, aiounittest.AsyncTestCase):
     pass
 
 class TestAttackBytesAsync(
     TestAttackBytesAsyncCommon, 
-    unittest.IsolatedAsyncioTestCase):
+    aiounittest.AsyncTestCase):
     pass
 
 

@@ -1,5 +1,5 @@
 import unittest
-from unittest import IsolatedAsyncioTestCase
+import aiounittest
 
 from perock.attempt import Attempt
 from perock.attempt import AttemptAsync
@@ -217,6 +217,6 @@ class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
 class TestAttempt(TestAttemptCommon, unittest.TestCase):
     pass
 
-class TestAttemptAsync(TestAttemptAsyncCommon, IsolatedAsyncioTestCase):
+class TestAttemptAsync(TestAttemptAsyncCommon, aiounittest.AsyncTestCase):
     pass
 

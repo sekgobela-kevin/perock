@@ -650,7 +650,7 @@ class BForceAsync(BForceParallel):
     def to_future(self, __callable:Callable) -> Future:
         # Returns Task object from coroutine callable
         awaitable =  __callable() # should be awaitable
-        return asyncio.create_task(awaitable)
+        return asyncio.ensure_future(awaitable)
 
     def handle_attack_recursive_future(
         self, 
@@ -662,7 +662,7 @@ class BForceAsync(BForceParallel):
 
     async def wait_tasks(self, tasks:List[asyncio.Task]):
         # Waits for tasks to complete and then returns
-        await asyncio.wait(tasks)
+        await asyncio.gather(*tasks, return_exceptions=False)
 
     async def consumer(self):
         # Consumes items in records_queue

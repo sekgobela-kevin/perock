@@ -4,19 +4,6 @@ Author: Sekgobela Kevin
 Date: June 2022
 Languages: Python 3
 '''
-import asyncio
-import time
-import contextvars
-import functools
-
-
-async def to_thread(func, *args, **kwargs):
-    # https://github.com/python/cpython/blob/main/Lib/asyncio/
-    # threads.py#L12
-    loop = asyncio.get_running_loop()
-    ctx = contextvars.copy_context()
-    func_call = functools.partial(ctx.run, func, *args, **kwargs)
-    return await loop.run_in_executor(None, func_call)
 
 
 def group_generator(generator, group_size):

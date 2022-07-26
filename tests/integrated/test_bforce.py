@@ -2,6 +2,8 @@ import unittest
 import asyncio
 from concurrent import futures
 
+import aiounittest
+
 from .common_classes import AttackSample
 from .common_classes import AttackAsyncSample
 from .common_test import CommonTest
@@ -129,16 +131,14 @@ class BForceAsyncCommonTest(BForceCommonTest):
         self.bforce.set_attack_class(AttackAsyncSample)
 
     def start(self):
-        asyncio.run(self.bforce.start())
+        # This is for supporting python 3.6
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.bforce.start())
+        loop.close()
 
 
 
 class BForceBlockCommonTest(BForceCommonTest):
-    def setup_bforce_object(self):
-        self.bforce = bforce.BForceBlock(self._target, self.table)
-        self.bforce.set_attack_class(AttackSample)
-
-class BForceAsyncCommonTest(BForceCommonTest):
     def setup_bforce_object(self):
         self.bforce = bforce.BForceBlock(self._target, self.table)
         self.bforce.set_attack_class(AttackSample)
@@ -149,7 +149,7 @@ class BForceAsyncCommonTest(BForceCommonTest):
 class BForceTest(BForceCommonTest, unittest.TestCase):
     pass
 
-class BForceAsyncTest(BForceAsyncCommonTest, unittest.TestCase):
+class BForceAsyncTest(BForceAsyncCommonTest, aiounittest.AsyncTestCase):
     pass
 
 class BForceBlockTest(BForceBlockCommonTest, unittest.TestCase):

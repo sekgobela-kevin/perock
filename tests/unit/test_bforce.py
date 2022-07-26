@@ -6,6 +6,8 @@ from concurrent.futures import Future
 from typing import Type
 import unittest
 
+import aiounittest
+
 
 from perock.attempt import Attempt
 from perock.target import Target

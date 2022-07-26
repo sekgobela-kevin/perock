@@ -1,6 +1,8 @@
 import asyncio
 import unittest
 
+import aiounittest
+
 from perock.attempt import AttemptAsync
 from perock.target import *
 
@@ -110,7 +112,10 @@ class TestCheckAsyncCommon(TestAttemptSetUpAsync):
     def setUp(self):
         super().setUp()
         self.create_check_objects()
-        asyncio.run(self.check_start())
+        # Create new event loop and closes after
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.check_start())
+        loop.close()
 
     def create_check_objects(self):
         # Initialises Check objects
@@ -175,9 +180,9 @@ class TestCheckAsyncCommon(TestAttemptSetUpAsync):
 
 
 
-class TestCheck(TestCheckCommon, unittest.TestCase):
+class TestCheck(TestCheckCommon, aiounittest.AsyncTestCase):
     pass
 
 
-class TestCheckAsync(TestCheckAsyncCommon, unittest.IsolatedAsyncioTestCase):
+class TestCheckAsync(TestCheckAsyncCommon, aiounittest.AsyncTestCase):
     pass
