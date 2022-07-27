@@ -248,5 +248,5 @@ class TestBForce(TestBForceThreadCommon, unittest.TestCase):
 
 class TestBForceAsync(
     TestBForceAsyncCommon, 
-    unittest.IsolatedAsyncioTestCase):
+    aiounittest.AsyncTestCase):
     pass
