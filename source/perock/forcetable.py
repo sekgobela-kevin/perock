@@ -269,7 +269,8 @@ class Table():
         for field in self._fields:
             if field.get_name() == name:
                 return field
-        raise Exception(f"Field with name '{name}' not found")
+        err_msg = "Field with name '{}' not found"
+        raise Exception(err_msg.format(name))
 
     def get_field_by_item_name(self, name, force=False):
         '''Gets field by its item name(raises exception if not found)'''
@@ -277,7 +278,8 @@ class Table():
         for field in self._fields:
             if field.get_item_name(force) == name:
                 return field
-        raise Exception(f"Field with name '{name}' not found")
+        err_msg = "Field with item name '{}' not found"
+        raise Exception(err_msg.format(name))
 
     def get_records(self):
         '''Returns records of the table'''

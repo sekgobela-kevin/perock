@@ -91,15 +91,15 @@ class Target():
             raise Exception(err_msg, account)
 
     def success_responce(self, account):
-        message = f"The system was unlocked with {account}"
+        message = "The system was unlocked with {}".format(account)
         return Responce(message, 200)
 
     def error_responce(self, account):
-        message = f"Failed to log into system with given credentials"
+        message = "Failed to log into system with given credentials"
         return Responce(message, 200)
 
     def access_denied_responce(self, account):
-        message = f"Access to the system was denied"
+        message = "Access to the system was denied"
         return Responce(message, 403)
 
     def target_error_responce(self, account):

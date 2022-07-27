@@ -120,7 +120,7 @@ class LoopSomeProducer(RecordsProducer):
     def set_excluded_primary_item(self, primary_items):
         if not isinstance(primary_items, set):
             #err_msg = "primary items needs instance of set not" +\
-            #f" {type(primary_items)}"
+            #" " + str(type(primary_items))
             #raise TypeError(err_msg)
             self._excluded_primary_items = set(primary_items)
         else:
@@ -221,7 +221,7 @@ class LoopSomeProducer(RecordsProducer):
                     # Ran out of records
                     break
         else:
-            err_msg = f"Current producer requires primary field"
+            err_msg = "Current producer requires primary field"
             raise Exception(err_msg)
 
     def should_return_item(self, record) -> bool:

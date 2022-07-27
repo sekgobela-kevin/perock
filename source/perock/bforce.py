@@ -779,4 +779,9 @@ if __name__ == "__main__":
     #test_obj.start()
 
     duration = time.time() - start_time
-    print(f"Downloaded {len(usernames)*len(passwords)} in {duration} seconds")
+    output_msg = "Downloaded {total} in {duration} seconds"
+    output_msg = output_msg.format(
+        total=len(usernames)*len(passwords),
+        duration=duration
+    )
+    print(output_msg)

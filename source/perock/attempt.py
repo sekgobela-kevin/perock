@@ -133,7 +133,7 @@ class Attempt():
     def before_request(self):
         # Called im,edeiately when start() is called
         if not self.validate_data(self._data):
-            err_msg = f"Data({self._data}) is not valid"
+            err_msg = "Data({}) is not valid".format(self.data)
             err_msg2 = "check if the data is in right format"
             raise ValueError(err_msg, err_msg2)
 

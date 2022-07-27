@@ -127,12 +127,12 @@ table.add_field(passwords_field)
 # Creates runner object for WebAttack class
 # Realise that this runs on threads 
 # target and table are neccessay and should be set.
-runner_object = runner.RunnerBlock(WebAttack)
+runner_object = runner.RunnerThread(WebAttack)
 runner_object.set_target('http://127.0.0.1:5000/login')
 runner_object.set_table(table)
 
-# Sets executo to be used default - ThreadPoolExecutor
-#runner_object.set_max_workers(put executor here)
+# Sets executor to be used default - ThreadPoolExecutor()
+#runner_object.set_executor(put executor here)
 
 # Sets number of workers to be used.
 # It could define number of threads depending on executor.
@@ -180,7 +180,7 @@ print(success_records)
 # {'password': '1029384756', 'username': 'BROWN'}, 
 # {'password': 'shuttle', 'username': 'ANDERSON'}, 
 # {'password': 'bigboss', 'username': 'MARTINEZ'}]
-print(f"Took {duration} seconds")
+print("Took took {:.2f} seconds".format(duration))
 # Took 247.02167010307312 seconds
 
 # Dont know why webapp is so slow

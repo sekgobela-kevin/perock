@@ -99,8 +99,8 @@ class Product():
     @classmethod
     def product_three_callables(cls, callables):
         if not len(callables) == 3:
-            err_msg = f"Three(3) callables expected not {len(callables)}"
-            raise ValueError(err_msg)
+            err_msg = "Three(3) callables expected not {}"
+            raise ValueError(err_msg.format(len(callables)))
         last_two = callables[-2:]
         rest = callables[:-2]
         def final_callable_product():
@@ -121,8 +121,8 @@ class Product():
     @classmethod
     def product_four_callables(cls, callables):
         if not len(callables) == 4:
-            err_msg = f"Four(4) callables expected not {len(callables)}"
-            raise ValueError(err_msg)
+            err_msg = "Four(4) callables expected not {}"
+            raise ValueError(err_msg.format(len(callables)))
         last_three_callables = callables[-3:]
         rest_callables = callables[:-3]
 

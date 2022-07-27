@@ -26,8 +26,8 @@ class ResponceBytes():
         elif isinstance(text, str):
             return text.encode()
         else:
-            err_msg = f"Text should be string or bytes not {type(text)}"
-            raise TypeError(err_msg)
+            err_msg = "Text should be string or bytes not {}"
+            raise TypeError(err_msg.format(type(text)))
 
     @classmethod
     def to_text(cls, text):
@@ -36,8 +36,8 @@ class ResponceBytes():
         elif isinstance(text, bytes):
             return text.decode()
         else:
-            err_msg = f"Text should be string or bytes not {type(text)}"
-            raise TypeError(err_msg) 
+            err_msg = "Text should be string or bytes not {}"
+            raise TypeError(err_msg.format(type(text)))
 
     @classmethod
     def contains_filter(cls, _bytes, bytes_iterator):
