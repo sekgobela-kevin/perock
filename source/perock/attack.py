@@ -155,16 +155,27 @@ class Attack(Attempt, Check):
 
     def confused_action(self):
         # Method called if theres is confusion
-        err_msg = f'''
+        target_reached = self.target_reached()
+        errors = self.errors()
+        failure = self.failure()
+        success = self.success()
+        err_msg = '''
         Not sure if attack failed or was success(confused)
 
-        Record/Data: {self._data}
-        Target Reached: {self.target_reached()}
-        Errors: {self.errors()}
-        Failed: {self.failure()}
-        Success: {self.success()}
+        Record/Data: {data}
+        Target Reached: {target_reached}
+        Errors: {errors}
+        Failed: {failure}
+        Success: {success}
         '''
-        raise Exception(err_msg)  
+        err_msg = err_msg.format(
+            data=self._data,
+            target_reached=target_reached,
+            errors=errors,
+            failure=failure,
+            success=success,
+        )
+        raise Exception(err_msg)    
 
     def start_until_target_reached(self):
         # Starts requests infinitely until target is reached
@@ -348,17 +359,24 @@ class AttackAsync(AttemptAsync, CheckAsync):
     async def confused_action(self):
         target_reached = await self.target_reached()
         errors = await self.errors()
-        failuure = await self.failure()
+        failure = await self.failure()
         success = await self.success()
-        err_msg = f'''
+        err_msg = '''
         Not sure if attack failed or was success(confused)
 
-        Record/Data: {self._data}
+        Record/Data: {data}
         Target Reached: {target_reached}
         Errors: {errors}
-        Failed: {failuure}
+        Failed: {failure}
         Success: {success}
         '''
+        err_msg = err_msg.format(
+            data=self._data,
+            target_reached=target_reached,
+            errors=errors,
+            failure=failure,
+            success=success,
+        )
         raise Exception(err_msg)   
 
 
