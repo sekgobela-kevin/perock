@@ -90,7 +90,7 @@ class LoginPageAttack(attack.Attack):
 
 
 # Creates runner object to perform bruteforce
-runner_object = runner.Runner(LoginPageAttack)
+runner_object = runner.RunnerThread(LoginPageAttack)
 runner_object.set_target('http://127.0.0.1:5000/login')
 runner_object.set_table(table)
 

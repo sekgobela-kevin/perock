@@ -130,7 +130,7 @@ class LoginPageAttack(attack.Attack):
 
 
 # Creates runner object to perform bruteforce
-runner_object = runner.Runner(LoginPageAttack)
+runner_object = runner.RunnerThread(LoginPageAttack)
 runner_object.set_target('http://127.0.0.1:5000/login')
 runner_object.set_table(table)
 
@@ -158,7 +158,7 @@ class LoginPageAttackAsync(attack.AttackAsync):
         if self.session_exists():
             return await self._session.post(self._target, data=self._data)
         else:
-            async with self.create_session() as session:
+            async with await self.create_session() as session:
                 return await session.post(self._target, data=self._data)
 
     async def failure(self):
@@ -189,7 +189,6 @@ class LoginPageAttackAsync(attack.AttackAsync):
         elif await self.errors():
             print("Attempt errors:", self._data)
             print("Responce message:", self._responce_msg)
-
 
 
 # Creates runner object to perform bruteforce

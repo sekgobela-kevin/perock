@@ -60,10 +60,13 @@ class TestFieldCommon():
     def test_get_name(self):
         self.assertEqual(self.field.get_name(), "names")
 
-    def get_item_name(self):
+    def test_get_item_name(self):
         with self.assertRaises(Exception):
-            # Column item name wasnt set
+            # Field item name wasnt set
             self.field.get_item_name()
+        # Field name should be returned when field item name not set
+        # and force is True.
+        self.assertEqual(self.field.get_item_name(True), "names")
         self.field.set_item_name("name")
         self.assertEqual(self.field.get_item_name(), "name")
 
@@ -210,7 +213,7 @@ class TestTableCommon(TestTableSetUp):
         self.usernames])
         self.assertCountEqual(self.empty_table.get_fields_items(), [])
 
-    def get_primary_items(self):
+    def test_get_primary_items(self):
         self.assertEqual(self.table.get_primary_items(), self.usernames)
         self.assertEqual(self.empty_table.get_primary_items(), None)
 
@@ -220,7 +223,7 @@ class TestTableCommon(TestTableSetUp):
         self.assertIsInstance(records[0], Record)
         self.assertEqual(len(records), len(self.dict_records))
 
-    def records_to_dicts(self):
+    def test_records_to_dicts(self):
         records = list(self.table.dicts_to_records(self.dict_records))
         dicts = list(self.table.records_to_dicts(records))
         self.assertIsInstance(records[0], dict)

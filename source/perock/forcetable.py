@@ -117,10 +117,21 @@ class Field():
 
 class FieldFile(Field):
     '''Class for creating field items from file in path''' 
-    def __init__(self, name, path) -> None:
+    def __init__(self, name:str, path, read_all=False) -> None:
+        '''Creates Field object
+        Parameters
+        ----------
+        name: str
+            Name of field
+        path: str | bytes
+            File path pointing to file with field items.
+        read_all: bool
+            True if should read all items to memory at once.
+        '''
         self._path = path
         self._file = open(path)
-        super().__init__(name, self._read_file_lines_callable)
+        file_lines_callable = self._read_file_lines_callable
+        super().__init__(name, file_lines_callable, read_all)
 
     def read_file_lines(self):
         '''Reads lines from file in path, returns generator'''
@@ -522,9 +533,9 @@ class PrimaryTable(Table):
 
 class RecordsTable(Table):
     '''Table class that allows setting of records'''
-    def __init__(self, records=[]) -> None:
+    def __init__(self, records=[], enable_callable_product=True) -> None:
         '''Creates RecordsTable instance'''
-        super().__init__()
+        super().__init__([], enable_callable_product)
         self.set_records(records)
 
     def update_records(self):

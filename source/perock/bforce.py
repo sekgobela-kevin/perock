@@ -397,10 +397,12 @@ class BForceParallel(BForceBase):
         # Stores consumer tasks not yet completed
         self._current_tasks: Set[Future] = set()
 
-        # Total independed tasks to run
-        # Corresponds to requests that will be executed concurrently
-        self._max_parallel_tasks = 500
+        # Total independed tasks to run in parallel
+        # Corresponds to attempts that will be executed concurrently
+        self._max_parallel_tasks = 100
 
+        # Defines how many workers to execute parallel tasks.
+        # None means number whatever workers that can be created.
         self._max_workers = None
 
     def set_max_workers(self, max_workers):
@@ -734,6 +736,8 @@ class BForce(BForceThread):
 
 
 if __name__ == "__main__":
+    from .attacks import *
+
     format = "%(asctime)s: %(message)s"
     logging.basicConfig(format=format, level=logging.INFO,
                         datefmt="%H:%M:%S")
@@ -770,7 +774,7 @@ if __name__ == "__main__":
     
     # see: https://stackoverflow.com/questions/45600579/
     # asyncio-event-loop-is-closed-when-getting-loop
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(test_obj.start())
     #test_obj.start()
 
