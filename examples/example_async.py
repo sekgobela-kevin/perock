@@ -51,7 +51,7 @@ class LoginPageAttackAsync(attack.AttackAsync):
         if self.session_exists():
             return await self._session.post(self._target, data=self._data)
         else:
-            async with self.create_session() as session:
+            async with await self.create_session() as session:
                 return await session.post(self._target, data=self._data)
 
     async def failure(self):

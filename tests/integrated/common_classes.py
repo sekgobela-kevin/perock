@@ -19,10 +19,12 @@ class AttackSample(attack.Attack):
     def after_request(self):
         super().after_request()
         if self.success():
-            print("Attempt success:", self._data)
+            #print("Attempt success:", self._data)
+            pass
         elif self.errors():
-            print("Attempt errors:", self._data)
-            print("Responce message:", self._responce_msg)
+            #print("Attempt errors:", self._data)
+            #print("Responce message:", self._responce_msg)
+            pass
 
 
 
@@ -42,10 +44,12 @@ class AttackAsyncSample(attack.AttackAsync):
     async def after_request(self):
         await super().after_request()
         if await self.success():
-            print("Attempt success:", self._data)
+            #print("Attempt success:", self._data)
+            pass
         elif await self.errors():
-            print("Attempt errors:", self._data)
-            print("Responce message:", self._responce_msg)
+            #print("Attempt errors:", self._data)
+            #print("Responce message:", self._responce_msg)
+            pass
 
 
 

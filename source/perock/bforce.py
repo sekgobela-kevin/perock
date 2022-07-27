@@ -582,7 +582,7 @@ class BForceAsync(BForceParallel):
             # Return session created by attack class
             return session
 
-    async def get_session(self):
+    def get_session(self):
         # Gets session object to be shared with attack objects
         if self.session_exists():
             return self._session
@@ -599,7 +599,7 @@ class BForceAsync(BForceParallel):
         if self.session_exists():
             # Create fake attack object and set session
             attack_object = self.create_attack_object(Record())
-            attack_object.set_session(await self.get_session())
+            attack_object.set_session(self.get_session())
             # close the session se on the object
             await attack_object.close_session()
     # End: session methods
@@ -625,7 +625,7 @@ class BForceAsync(BForceParallel):
     async def handle_attack(self, record: Record):
         #print("run async def handle_attack()")
         # Handles attack on attack class with asyncio support
-        session = await self.get_session()
+        session = await self.get_create_session()
         async with self.create_attack_object(record) as attack_object:
             #print("after self.create_attack_object()")
             if session != None:

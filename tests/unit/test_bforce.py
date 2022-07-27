@@ -27,6 +27,7 @@ from perock.attack import AttackAsync
 
 from perock.bforce import BForce
 from perock.bforce import BForceAsync
+from perock.bforce import BForceBlock
 
 
 class SampleAttack(SampleAttack):
@@ -103,6 +104,15 @@ class TestBForceBaseCommon(TestBForceBaseSetUP):
         session = self.bforce.get_session()
         self.assertEqual(self.bforce.get_session(), session)
 
+    def test_get_create_session(self):
+        # This test method is similar to test_get_session()
+        #self.assertEqual(self.bforce_raw.get_create_session(), None)
+        self.bforce.set_session(self._session)
+        # Same session be returned
+        session = self.bforce.get_session()
+        self.assertEqual(self.bforce.get_create_session(), session)
+
+
     def test_set_attack_class(self):
         self.bforce_raw.set_attack_class(self.attack_class)
         self.assertEqual(self.bforce_raw.get_attack_class(), self.attack_class)
@@ -133,7 +143,7 @@ class TestBForceBaseCommon(TestBForceBaseSetUP):
 
 
 
-class TestBForceParallelCommon(TestBForceBaseSetUP):
+class TestBForceParallelCommon(TestBForceBaseCommon):
     def test_set_max_workers(self):
         self.bforce.set_max_workers(2)
 
@@ -198,6 +208,11 @@ class TestBForceThreadCommon(TestBForceExecutorCommon):
     attack_class = SampleAttack
 
 
+class TestBForceBlockCommon(TestBForceBaseCommon):
+    bforce_class = BForceBlock
+    attack_class = SampleAttack
+
+
 class TestBForceAsyncCommon(TestBForceParallelCommon):
     bforce_class: Type[BForceAsync] = BForceAsync
     attack_class: Type[SampleAttackAsync] = SampleAttackAsync
@@ -209,10 +224,18 @@ class TestBForceAsyncCommon(TestBForceParallelCommon):
         #self.assertEqual(self.bforce_raw.create_session(), None)
         self.assertIsInstance(await self.bforce.create_session(), Session)
 
+    async def test_get_create_session(self):
+        # This test method is similar to test_get_session()
+        #self.assertEqual(await self.bforce_raw.get_create_session(), None)
+        self.bforce.set_session(self._session)
+        # Same session be returned
+        session = self.bforce.get_session()
+        self.assertEqual(await self.bforce.get_create_session(), session)
+
     async def test_close_session(self):
         self.bforce.set_session(self._session)
         await self.bforce.close_session()
-        session = await self.bforce.get_session()
+        session = self.bforce.get_session()
         self.assertTrue(session.closed)
 
 
@@ -242,11 +265,13 @@ class TestBForceAsyncCommon(TestBForceParallelCommon):
         await self.bforce.start()
 
 
-class TestBForce(TestBForceThreadCommon, unittest.TestCase):
+
+
+class TestBForceBlock(TestBForceBlockCommon, unittest.TestCase):
     pass
 
+class TestBForceAsync(TestBForceAsyncCommon, aiounittest.AsyncTestCase):
+    pass
 
-class TestBForceAsync(
-    TestBForceAsyncCommon, 
-    aiounittest.AsyncTestCase):
+class TestBForce(TestBForceThreadCommon, unittest.TestCase):
     pass
