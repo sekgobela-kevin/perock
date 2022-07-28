@@ -191,6 +191,15 @@ class RunnerThread(RunnerExecutor):
         super().__init__(attack_class, bforce_class)
 
 
+# class RunnerProcess(RunnerExecutor):
+#     '''Runs bruteforce attack using multi-proccessing'''
+#     def __init__(
+#         self, 
+#         attack_class: Type[attack.Attack], 
+#         bforce_class=bforce.BForceProcess) -> None:
+#         super().__init__(attack_class, bforce_class)
+
+
 class RunnerAsync(RunnerParallel):
     '''Runs bruteforce attack on target using asyncio'''
     def __init__(self, 

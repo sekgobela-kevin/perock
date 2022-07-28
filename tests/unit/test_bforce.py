@@ -25,7 +25,7 @@ from .test_attack import SampleAttackAsync
 from perock.attack import Attack
 from perock.attack import AttackAsync
 
-from perock.bforce import BForce
+from perock.bforce import BForce, BForceThread
 from perock.bforce import BForceAsync
 from perock.bforce import BForceBlock
 
@@ -137,6 +137,15 @@ class TestBForceBaseCommon(TestBForceBaseSetUP):
         self.bforce.set_max_parallel_primary_tasks(10)
 
 
+    def test_get_next_producer_record(self):
+        record = self.bforce.get_next_producer_record()
+        self.assertIsNotNone(record)
+
+    def test_get_next_producer_records(self):
+        records = self.bforce.get_next_producer_records(3)
+        self.assertEqual(len(records), 3)
+
+
     def test_start(self):
         # This is not a test but call to method
         self.bforce.start()
@@ -176,11 +185,12 @@ class TestBForceExecutorCommon(TestBForceParallelCommon):
         self.assertIsInstance(executor, Executor)
 
     def test_create_get_executor(self):
-        self.assertIsInstance(self.bforce.create_get_executor(), 
-        ThreadPoolExecutor)
-        self.bforce.set_executor(self.process_executor)
-        self.assertEqual(self.bforce.create_get_executor(), 
-        self.process_executor)
+        self.assertIsInstance(
+            self.bforce.create_get_executor(), Executor)
+        with self.bforce.create_default_executor() as executor:
+            self.bforce.set_executor(executor)
+            self.assertEqual(self.bforce.create_get_executor(), 
+            executor)
 
     def test_to_future(self):
         with self.bforce.create_default_executor() as executor:
@@ -204,8 +214,17 @@ class TestBForceExecutorCommon(TestBForceParallelCommon):
 
 
 class TestBForceThreadCommon(TestBForceExecutorCommon):
-    bforce_class = BForce
+    bforce_class = BForceThread
     attack_class = SampleAttack
+
+# class TestBForceProcessCommon(TestBForceExecutorCommon):
+#     bforce_class = BForceProcess
+#     attack_class = SampleAttack
+
+#     def test_start(self):
+#         # This is not a test but call to method
+#         #self.bforce.start()
+#         pass
 
 
 class TestBForceBlockCommon(TestBForceBaseCommon):
@@ -269,6 +288,12 @@ class TestBForceAsyncCommon(TestBForceParallelCommon):
 
 class TestBForceBlock(TestBForceBlockCommon, unittest.TestCase):
     pass
+
+class TestBForceThread(TestBForceThreadCommon, unittest.TestCase):
+    pass
+
+# class TestBForceProcess(TestBForceProcessCommon, unittest.TestCase):
+#     pass
 
 class TestBForceAsync(TestBForceAsyncCommon, aiounittest.AsyncTestCase):
     pass

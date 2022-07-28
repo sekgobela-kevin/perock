@@ -34,11 +34,12 @@ Languages: Python 3
 from typing import Callable, Dict, Iterable, List, Set, Type
 import logging
 import threading
+import multiprocessing
 import time
-import itertools
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import Future
 from concurrent.futures import Executor
 #from concurrent.futures import as_completed
@@ -354,6 +355,18 @@ class BForceBase():
         # None means theres no any Records left
         return None
 
+    def get_next_producer_records(self, max_records:int):
+        # Returns list of next producer records
+        records = []
+        for _ in range(max_records):
+            record = self.get_next_producer_record()
+            if record != None:
+                records.append(record)
+            else:
+                break
+        return records
+
+
     def handle_attack(self, record: Record):
         # Handles attack with provided record
         session = self.get_create_session() # get session for this thread
@@ -367,21 +380,6 @@ class BForceBase():
             # handles results of the request
             self.handle_attack_results(attack_object, record)
 
-
-    def handle_attack_recursive(self, record):
-        # Performs attack recoursively on record and other records.
-        # When attack completes on record, another attack is started.
-        # This continues until producer runs out of records.
-        # This was first implemented by BForceAsync.
-        self.handle_attack(record)
-        while True:
-            record = self.get_next_producer_record()
-            if record != None:
-                # Perform attack again on the record
-                self.handle_attack(record)
-            else:
-                # Producer ran out of records
-                break
 
     def consumer(self):
         # Consumes records in producer and initiate attack
@@ -423,7 +421,6 @@ class BForceParallel(BForceBase):
 
     def task_done_callback(self, future: Future):
         # Called when task completes
-        self._current_tasks.discard(future)
         try:
             future.result()
         except Exception as e:
@@ -437,10 +434,30 @@ class BForceParallel(BForceBase):
                 self.cancel_consumer_producer()
                 raise e
 
+    def handle_attack_recursive(self, record):
+        # Performs attack recoursively on record and other records.
+        # When attack completes on record, another attack is started.
+        # This continues until producer runs out of records.
+        # This was first implemented by BForceAsync.
+        self.handle_attack(record)
+        while True:
+            record = self.get_next_producer_record()
+            if record != None:
+                # Perform attack again on the record
+                self.handle_attack(record)
+            else:
+                # Producer ran out of records
+                break
 
     def to_future(self, __callable:Callable) -> Future:
         # Returns future like object from callable object
         raise NotImplementedError
+
+    def handle_attack_future(self, record) -> Future:
+        # Returns Future like object of self.handle_attack()
+        def callback():
+            self.handle_attack(record)
+        return self.to_future(callback)
 
     def handle_attack_recursive_future(self, record) -> Future:
         # Returns Future like object of self.handle_attack_recursive()
@@ -465,6 +482,7 @@ class BForceParallel(BForceBase):
                 task = self.handle_attack_recursive_future(record)
                 tasks.add(task)
                 self._current_tasks.add(task)
+                task.add_done_callback(self._current_tasks.discard)
                 task.add_done_callback(self.task_done_callback)
             else:
                 break
@@ -526,7 +544,7 @@ class BForceThread(BForceExecutor):
     def __init__(self, target, table: Table, optimise=False) -> None:
         super().__init__(target, table, optimise)
         self._thread_local = threading.local()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
 
     def session_exists(self):
@@ -544,11 +562,47 @@ class BForceThread(BForceExecutor):
         
 
     def create_default_executor(self) -> Executor:
-        return ThreadPoolExecutor(self._max_parallel_tasks)
+        return ThreadPoolExecutor(self._max_workers)
 
     def get_next_producer_record(self):
         with self._lock:
             return super().get_next_producer_record()
+
+
+# class BForceProcess(BForceExecutor):
+#     '''Performs bruteforce attack using processes'''
+#     def __init__(self, target, table: Table, optimise=False) -> None:
+#         super().__init__(target, table, optimise)
+#         # RLock is preffered here over Lock
+#         self._lock = multiprocessing.RLock()
+
+
+#     def session_exists(self):
+#         # Returns True if session exists
+#         return "_session" in globals()
+
+#     def set_session(self, session):
+#         # Sets session object to be used by Attack objects
+#         # Session is set globally for each process.
+#         globals()["_session"] = session
+        
+
+#     def get_session(self):
+#         if self.session_exists():
+#             return globals()["_session"]
+#         return None
+
+#     def create_default_executor(self) -> Executor:
+#         # Creates process executor to execute tasks.
+#         # Initialize was not set as get_create_executor handles
+#         # everything about setting and creating executor.
+#         return ProcessPoolExecutor(self._max_workers)
+
+#     def get_next_producer_record(self):
+#         with self._lock:
+#             # get_next_producer_record() modifies some attributes.
+#             # It needs to be under a lock(avoid data races)
+#             return super().get_next_producer_record()
 
 
 

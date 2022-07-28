@@ -24,7 +24,7 @@ improve performance.
 
 #### Cons
 - Performs slower than manually written code.
-- Python 3.4 or less not supported.
+- Python 3.5 or less not supported.
 
 ### Install
 In your command-line application enter this:
@@ -33,7 +33,7 @@ pip install perock
 ```
 
 ### Environment
-- Tested with Python 3.5, 3.6, 3.8 and 3.10.
+- Tested with Python 3.6, 3.8 and 3.10.
 
 ### Examples
 
