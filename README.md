@@ -24,13 +24,16 @@ improve performance.
 
 #### Cons
 - Performs slower than manually written code.
-- Not as fast with CPU bound attack(e.g cracking password file)
+- Python 3.4 or less not supported.
 
 ### Install
 In your command-line application enter this:
 ```bash 
 pip install perock
 ```
+
+### Environment
+- Tested with Python 3.5, 3.6, 3.8 and 3.10.
 
 ### Examples
 
@@ -208,5 +211,6 @@ and different.
 ### Similar projects
 - [instaBrute](https://github.com/chinoogawa/instaBrute)
 - [Brute_Force](https://github.com/Matrix07ksa/Brute_Force)
+- [Instagram Bruter](https://github.com/Bitwise-01/Instagram-)
 - [python-bruteForce](https://github.com/Antu7/python-bruteForce)
 - [Multi-Threaded-BruteForcer](https://github.com/nasbench/Multi-Threaded-BruteForcer)
