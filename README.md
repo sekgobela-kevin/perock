@@ -11,7 +11,7 @@ variety of bruteforce attack activities. It can be used with html forms,
 file with passwords, API requiring username and password, etc.
 
 All it takes is defining how to interact with the system/target and validate
-bruteforce data such as username and password. The rest will be handled you
+bruteforce data such as username and password. The rest will be handled for you
 including when to terminate based on certain conditions which would
 improve performance.
 
@@ -73,7 +73,7 @@ table.add_field(passwords_field)
 table.set_primary_field(usernames_field)
 
 # table will handle cartesian product of the fields
-# tabe also contains records created from the fields
+# table also contains records created from the fields
 ```
 
 #### Threaded bruteforce attack
