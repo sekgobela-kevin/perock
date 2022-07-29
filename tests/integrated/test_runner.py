@@ -36,9 +36,8 @@ class RunnerBaseSetUp(test_bforce.BForceSetUp):
         self.setup_runner()
 
     def setup_runner(self):
-        self.runner = self.bforce_class(self.attack_class)
-        self.runner.set_target(self._target)
-        self.runner.set_table(self.table)
+        self.runner = self.bforce_class(
+            self.attack_class, self._target, self.table)
     
     def start(self):
         # Calls .run() of runner object

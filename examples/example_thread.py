@@ -90,10 +90,16 @@ class LoginPageAttack(attack.Attack):
 
 
 # Creates runner object to perform bruteforce
-runner_object = runner.RunnerThread(LoginPageAttack)
-runner_object.set_target('http://127.0.0.1:5000/login')
-runner_object.set_table(table)
+runner_object = runner.RunnerThread(
+    LoginPageAttack, "http://127.0.0.1:5000/login", table)
 
 # Enables optimisation(requires primary field)
 runner_object.enable_optimise()
 runner_object.run()
+
+
+
+# FileField is backed by file object.
+# Its important to close it after use.
+usernames_field.close()
+usernames_field.close()

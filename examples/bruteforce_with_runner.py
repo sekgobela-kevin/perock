@@ -127,9 +127,8 @@ table.add_field(passwords_field)
 # Creates runner object for WebAttack class
 # Realise that this runs on threads 
 # target and table are neccessay and should be set.
-runner_object = runner.RunnerThread(WebAttack)
-runner_object.set_target('http://127.0.0.1:5000/login')
-runner_object.set_table(table)
+runner_object = runner.RunnerThread(
+    WebAttack, 'http://127.0.0.1:5000/login', table)
 
 # Sets executor to be used default - ThreadPoolExecutor()
 #runner_object.set_executor(put executor here)

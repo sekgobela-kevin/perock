@@ -133,9 +133,8 @@ class LoginPageAttack(attack.Attack):
 
 
 # Creates runner object to perform bruteforce
-runner_object = runner.RunnerThread(LoginPageAttack)
-runner_object.set_target('http://127.0.0.1:5000/login')
-runner_object.set_table(table)
+runner_object = runner.RunnerThread(
+    LoginPageAttack, "http://127.0.0.1:5000/login", table)
 
 # Enables optimisation(requires primary field)
 runner_object.enable_optimise()
@@ -195,13 +194,20 @@ class LoginPageAttackAsync(attack.AttackAsync):
 
 
 # Creates runner object to perform bruteforce
-runner_object = runner.RunnerAsync(LoginPageAttackAsync)
-runner_object.set_target('http://127.0.0.1:5000/login')
-runner_object.set_table(table)
+runner_object = runner.RunnerAsync(
+    LoginPageAttackAsync, "http://127.0.0.1:5000/login", table)
 
 # Enables optimisation(requires primary field)
 runner_object.enable_optimise()
 asyncio.run(runner_object.run())
+```
+
+#### Free fields resources
+```python
+# FileField is backed by file object.
+# Its important to close it after use.
+usernames_field.close()
+usernames_field.close()
 ```
 
 >The examples above can be easily modified based on
