@@ -1,5 +1,4 @@
 # perock
-> Simple Python bruteforce attack library
 
 ### Description
 Perock is Python bruteforce attack library built on threads and asyncio. Its
