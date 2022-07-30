@@ -50,8 +50,15 @@ class Check():
 
     def failure(self):
         '''Returns True if attempt to log to system failed'''
-        # It may be False because of errors or target not reached
-        return not self.success()
+        # This method should raise not implemented error.
+        # Developer should implement this method.
+        # But we can guess if there was failure based on success.
+        if self.target_reached():
+            # If theres is no error or sucess then it may be failure.
+            # This should work in most cases.
+            return not (self.success() or self.errors())
+        # Failure is not expected if target was reached.
+        return False
 
     def target_errors(self):
         '''Checks if there were error at target side'''
@@ -91,7 +98,13 @@ class CheckAsync(Check):
         return super().success()
 
     async def failure(self):
-        return not await self.success()
+        # This method guesses failure based on sucess and error.
+        # Its reccommended to implement this method.
+        # But it should work well in most/all cases.
+        if await self.target_reached():
+            # If theres is no error or sucess then it may be failure.
+            return not (await self.success() or await self.errors())
+        return False
 
     async def target_errors(self):
         return super().target_errors()

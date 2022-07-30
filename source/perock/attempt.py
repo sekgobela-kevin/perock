@@ -7,23 +7,32 @@ Languages: Python 3
 from typing import List, Set
 
 
-def try_close(object):
+def try_close(__object):
     # Attempts to close provided object
     try:
         # This should work in most cases
-        object.close()
+        __object.close()
     except (AttributeError):
-        # object cannot be closed
-        pass
+        try:
+            with __object:
+                pass
+        except (AttributeError):
+            pass
 
-async def try_close_async(object):
+async def try_close_async(__object):
     # Attempts to close provided object asynchonously
     try:
         # This should work in most cases
-        await object.close()
+        await __object.close()
     except (AttributeError, TypeError):
-        # object cannot be closed
-        pass
+        try:
+            async with __object:
+                # object cannot be closed
+                pass
+        except (AttributeError, TypeError):
+            # Let try close it the usual way 
+            try_close(__object)
+
 
 
 class Attempt():
@@ -97,12 +106,13 @@ class Attempt():
 
     def close_session(self):
         '''Closes session object'''
-        try_close(self._session)
-        assert self._session.closed
+        if self.session_exists():
+            try_close(self._session)
 
     def close_responce(self):
         "Closes responce object"
-        try_close(self._responce)
+        if self._responce:
+            try_close(self._responce)
     
     def session_exists(self) -> bool:
         '''Returns True if session exists'''
@@ -187,11 +197,13 @@ class AttemptAsync(Attempt):
 
     async def close_session(self):
         '''Closes session object'''
-        await try_close_async(self._session)
+        if self.session_exists():
+            await try_close_async(self._session)
 
     async def close_responce(self):
         "Closes responce object"
-        await try_close_async(self._responce)
+        if self._responce:
+            await try_close_async(self._responce)
 
     async def before_request(self):
         super().before_request()

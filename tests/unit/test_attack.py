@@ -178,12 +178,21 @@ class TestAttackCommon(
         self.attempt.set_retries_sleep_time(2)
 
     def test_after_request(self):
-        #with self.assertRaises(Exception):
-        #self.attack.after_request()
-        pass
+        self.attack.after_request()
 
     def test_isconfused(self):
         self.attack.isconfused()
+
+    def test_confused_action(self):
+        with self.assertRaises(Exception):
+            self.attack.confused_action()
+
+    def start_until_target_reached(self):
+        self.attack.until_target_reached()
+
+    def test_start_until_retries(self):
+        self.attack.start_until_retries()
+
 
 class TestAttackBytesCommon(TestAttackCommon):
     attack_class = SampleAttackBytes
@@ -199,9 +208,17 @@ class TestAttackAsyncCommon(
         self.create_attack_objects()
 
     async def test_after_request(self):
-        #with self.assertRaises(Exception):
-        #    await self.attack.after_request()
-        pass
+        await self.attack.after_request()
+
+    async def test_confused_action(self):
+        with self.assertRaises(Exception):
+            await self.attack.confused_action()
+
+    async def start_until_target_reached(self):
+        await self.attack.until_target_reached()
+
+    async def test_start_until_retries(self):
+        await self.attack.start_until_retries()
 
 
 class TestAttackBytesAsyncCommon(TestAttackAsyncCommon):

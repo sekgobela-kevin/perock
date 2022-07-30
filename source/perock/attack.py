@@ -8,6 +8,7 @@ Languages: Python 3
 '''
 import asyncio
 import time 
+import typing
 
 from .attempt import Attempt
 from .attempt import AttemptAsync
@@ -35,6 +36,9 @@ class Attack(Attempt, Check):
         self._retries = retries
         self._tries = retries + 1
         self._retry_sleep_time = 0
+
+        self._should_validate_attack = True
+        self._should_update_responce_message = True
 
     def set_retries(self, retries):
         self._retries = retries
@@ -99,14 +103,12 @@ class Attack(Attempt, Check):
 
         if not target_reached:
             if target_errors:
-                err_msg = "Target error not expected if target was not reached"
-                raise Exception(err_msg)
-            if not client_errors:
-                err_msg = "Client error expected if target was not reached"
+                err_msg = "Target error not expected if target " +\
+                    "was not reached"
                 raise Exception(err_msg)
             if success and failure:
                 err_msg = "success or failure not expected if target " +\
-                "was not reached"
+                    "was not reached"
                 raise Exception(err_msg)
                     
 
@@ -177,37 +179,44 @@ class Attack(Attempt, Check):
         )
         raise Exception(err_msg)    
 
-    def start_until_target_reached(self):
-        # Starts requests infinitely until target is reached
-        # No need to retry if running until
+    def start_until_target_reached(
+        self,
+        should_continue_callaback = lambda : True):
+        '''Starts attack infinitely until target is reached.
+
+        should_continue_callaback: Callable
+            Callable which if returns False stops the method
+        '''
         while True:
             self.start()
             if self.target_reached():
                 break
+            elif not should_continue_callaback():
+                break
             time.sleep(self._retry_sleep_time)
 
-    def start_for_tries(self):
-        # Starts requests for tries until target is reached
-        count = 0
-        while count < self._tries:
+    def start_until_retries(
+        self,
+        should_continue_callaback = lambda : True):
+        '''Starts requests for tries until target is reached
+
+        should_continue_callaback: Callable
+            Callable which if returns False stops the method'''
+        for _ in range(self._tries):
             self.start()
             if self.target_reached():
                 break
+            elif not should_continue_callaback():
+                break
             time.sleep(self._retry_sleep_time)
-            count += 1
-
-
-    def target_not_reached_action(self):
-        # Method called if target is not reached
-        pass
 
     def after_request(self):
         # Called after start() completes
         super().after_request()
-        self._validate_attack()
-        self._update_responce_message()
-        if not self.target_reached():
-            self.target_not_reached_action()
+        if self._should_validate_attack:
+            self._validate_attack()
+        if self._should_update_responce_message:
+            self._update_responce_message()
 
 
 
@@ -220,12 +229,11 @@ class AttackAsync(AttemptAsync, CheckAsync):
         self.base_attempt_class.__init__(self, target, data, retries)
         self.base_check_class.__init__(self, self)
         self._retries = 10
+        self._tries = retries + 1
         self._retry_sleep_time = 0
-        self._retries_started = False
 
-
-        self._retries = retries
-        self._retry_sleep_time = 0
+        self._should_validate_attack = True
+        self._should_update_responce_message = True
 
     def set_retries(self, retries):
         self._retries = retries
@@ -267,7 +275,7 @@ class AttackAsync(AttemptAsync, CheckAsync):
                 err_msg = "Client error expected if request failed"
                 raise Exception(err_msg)
             if target_errors:
-                err_msg = "Target error not allowed if request failed"
+                err_msg = "Target error not expected if request failed"
                 raise Exception(err_msg)
 
         if target_reached:
@@ -292,10 +300,7 @@ class AttackAsync(AttemptAsync, CheckAsync):
             if target_errors:
                 err_msg = "Target error not expected if target was not reached"
                 raise Exception(err_msg)
-            if not client_errors:
-                err_msg = "Client error expected if target was not reached"
-                raise Exception(err_msg)
-            if success and failure:
+            if success or failure:
                 err_msg = "success or failure not expected if target " +\
                 "was not reached"
                 raise Exception(err_msg)
@@ -380,39 +385,43 @@ class AttackAsync(AttemptAsync, CheckAsync):
         raise Exception(err_msg)   
 
 
-    async def start_until_target_reached(self):
-        # Starts requests infinitely until target is reached
-        # No need to retry if running until
+    async def start_until_target_reached(
+        self,
+        should_continue_callaback = lambda : True):
+        '''Starts attack infinitely until target is reached
+        should_continue_callaback: Callable
+            Callable which if returns False stops the method
+        '''
         while True:
             await self.start()
             if await self.target_reached():
                 break
+            elif not should_continue_callaback():
+                break
             await asyncio.sleep(self._retry_sleep_time)
 
-    async def start_for_tries(self):
-        # Starts requests for tries until target is reached
-        count = 0
-        while count < self._tries:
+    async def start_until_retries(
+        self,
+        should_continue_callaback = lambda : True):
+        '''Starts requests for tries until target is reached
+        should_continue_callaback: Callable
+            Callable which if returns False stops the method'''
+        for _ in range(self._tries):
             await self.start()
             if await self.target_reached():
                 break
+            elif not should_continue_callaback():
+                break
             await asyncio.sleep(self._retry_sleep_time)
-            count += 1
-
-
-    async def target_not_reached_action(self):
-        # Method called if target is not reached
-        pass
-
 
 
     async def after_request(self):
         # Called after start() completes
         await super().after_request()
-        await self._validate_attack()
-        await self._update_responce_message()
-        if not await self.target_reached():
-            await self.target_not_reached_action()
+        if self._should_validate_attack:
+            await self._validate_attack()
+        if self._should_update_responce_message:
+            await self._update_responce_message()
 
 
 

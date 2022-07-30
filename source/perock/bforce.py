@@ -32,7 +32,6 @@ Languages: Python 3
 
 
 from typing import Callable, Dict, Iterable, List, Set, Type
-import logging
 import threading
 import multiprocessing
 import time
@@ -259,8 +258,11 @@ class BForceBase():
             self.attack_failure_callback(attack_object, record)
         elif attack_object.success():
             self.attack_success_callback(attack_object, record)
+        elif not attack_object.request_started():
+            err_msg = "Request not started after starting request"
+            raise Exception(err_msg)
         else:
-            err_msg = "Something went wrong while handling attack results"
+            err_msg = "Something is wrong with attack results"
             raise Exception(err_msg)          
             
 
@@ -375,8 +377,10 @@ class BForceBase():
                 # offer attack object session before request
                 # attack object should use the session during request
                 attack_object.set_session(session)
-            # start the request(can take some time)
-            attack_object.start_until_target_reached()
+            # .start_until_retries() the request(can take some time)
+            attack_object.start_until_retries(
+                self.consumer_should_continue
+            )
             # handles results of the request
             self.handle_attack_results(attack_object, record)
 
@@ -674,8 +678,11 @@ class BForceAsync(BForceParallel):
             self.attack_failure_callback(attack_object, record)
         elif await attack_object.success():
             self.attack_success_callback(attack_object, record)
+        elif not attack_object.request_started():
+            err_msg = "Request not started after starting request"
+            raise Exception(err_msg)
         else:
-            err_msg = "Something went wrong while handling attack results"
+            err_msg = "Something is wrong with attack results"
             raise Exception(err_msg)
 
     async def handle_attack(self, record: Record):
@@ -687,8 +694,10 @@ class BForceAsync(BForceParallel):
             if session != None:
                 # this line can speed request performance
                 attack_object.set_session(session)
-            # .start() needs to be coroutine method
-            await attack_object.start_until_target_reached()
+            # .start_until_retries() needs to be coroutine method
+            await attack_object.start_until_retries(
+                self.consumer_should_continue
+            )
             await self.handle_attack_results(attack_object, record)
 
 
@@ -785,16 +794,11 @@ class BForce(BForceThread):
     # Its not guaranteed to be that one in future.
     def __init__(self, target, table: Table, optimise=False) -> None:
         super().__init__(target, table, optimise)       
-# format = "%(asctime)s: %(message)s"
-# logging.basicConfig(format=format, level=logging.INFO,datefmt="%H:%M:%S")
+
 
 
 if __name__ == "__main__":
     from .attacks import *
-
-    format = "%(asctime)s: %(message)s"
-    logging.basicConfig(format=format, level=logging.INFO,
-                        datefmt="%H:%M:%S")
 
     # Prepare data for attack
     url = 'https://httpbin.org/post'
