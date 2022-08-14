@@ -61,6 +61,38 @@ def cast_to_class(
     return dest_class_copy
 
 
+
+def try_close(__object):
+    # Attempts to close provided object
+    try:
+        # This should work in most cases
+        __object.close()
+    except (AttributeError):
+        # Context manager may also help in closing object.
+        # If it fails then the object cannot be closed.
+        try:
+            with __object:
+                pass
+        except (AttributeError):
+            pass
+
+async def try_close_async(__object):
+    # Attempts to close provided object asynchonously
+    try:
+        # This should work in most cases
+        await __object.close()
+    except (AttributeError, TypeError):
+        # Context manager may also help in closing object.
+        # If it fails then the object cannot be closed.
+        try:
+            async with __object:
+                # object cannot be closed
+                pass
+        except (AttributeError, TypeError):
+            # Let try close it the usual way 
+            try_close(__object)
+
+
 if __name__ == "__main__":
     print(list(split_iterator([1,2,4,6,8,10], 4)))
     pass

@@ -55,6 +55,7 @@ from .forcetable import Table
 from . import forcetable
 
 from . import producer
+from . import util
 
 # Not used
 #from .session import BForceSession
@@ -158,12 +159,10 @@ class BForceBase():
         return self.get_session()
 
     def close_session(self):
+        # Close session object shared by attack objects
         if self.session_exists():
-            # Create fake attack object and set session
-            attack_object = self.create_attack_object(Record())
-            attack_object.set_session(self.get_session())
-            # close the session set on the object
-            attack_object.close_session()
+            session = self.get_session()
+            util.try_close(session)
     # End: session methods
 
 
@@ -657,11 +656,8 @@ class BForceAsync(BForceParallel):
     async def close_session(self):
         # Close session object shared by attack objects
         if self.session_exists():
-            # Create fake attack object and set session
-            attack_object = self.create_attack_object(Record())
-            attack_object.set_session(self.get_session())
-            # close the session se on the object
-            await attack_object.close_session()
+            session = self.get_session()
+            await util.try_close_async(session)
     # End: session methods
 
 
