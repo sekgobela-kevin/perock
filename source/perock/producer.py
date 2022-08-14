@@ -7,7 +7,6 @@ Languages: Python 3
 '''
 from typing import Callable, Iterable, Iterator
 import itertools
-from unittest import TestResult
 
 from . import forcetable
 
@@ -43,28 +42,25 @@ class ProducerBase():
     def get_items(self) -> Iterator:
         for item in self._fetched_items:
             if self._producer_should_cancel:
-                self._external_cancel_callback(item)
                 self._cancel_callback(item)
                 break
             elif self.should_return_item(item):
-                self._external_item_return_callback(item)
                 self._item_return_callback(item)
                 yield item
             else:
-                self._external_item_return_fail_callback(item)
                 self._item_return_fail_callback(item)
                 pass
 
     def _item_return_fail_callback(self, item):
         # Called when item couldnt be returned by producer
-        pass
+        self._external_item_return_fail_callback(item)
 
     def _item_return_callback(self, item):
         # Called when item is returned by producer
-        pass
+        self._external_item_return_callback(item)
 
     def _cancel_callback(self):
-        pass
+        self._external_cancel_callback()
 
     def cancel(self):
         self._producer_should_cancel = True
@@ -118,13 +114,9 @@ class LoopSomeProducer(RecordsProducer):
         self._excluded_primary_items.add(primary_item)
 
     def set_excluded_primary_item(self, primary_items):
-        if not isinstance(primary_items, set):
-            #err_msg = "primary items needs instance of set not" +\
-            #" " + str(type(primary_items))
-            #raise TypeError(err_msg)
-            self._excluded_primary_items = set(primary_items)
-        else:
-            self._excluded_primary_items = primary_items
+        # Sets primary items of records to be excluded.
+        # Records with these primary items wont be returned by producer.
+        self._excluded_primary_items = primary_items
 
     def remove_excluded_primary_item(self, primary_item):
         self._excluded_primary_items.discard(primary_item)
@@ -204,8 +196,7 @@ class LoopSomeProducer(RecordsProducer):
     
     def _get_next_record(self):
         # Gets next record, None if no record
-        record, records = self.get_next_record_records()
-        return record
+        return self.get_next_record_records()[0]
 
     def fetch_items(self) -> Iterable[forcetable.Record]:
         if self._table.primary_field_exists():
@@ -238,12 +229,6 @@ class LoopSomeProducer(RecordsProducer):
         # Likely to be when record cannot be returned
         if record == None:
             return False
-        elif len(self._fields) == 1:
-            # This applies if primary field is the only field
-            # If one primary item is excluded then we switch
-            # This will result in producer stopping
-            # Table.records_primary_grouped() was created with in mind
-            return bool(self._excluded_primary_items)
         else:
             return not self.should_return_item(record)
 
