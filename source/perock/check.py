@@ -70,9 +70,9 @@ class Check():
     def client_errors(self):
         '''Returns True if there were errors on client(our side)'''
         # Returns True if there were errors on client
-        # This means request failed to even start
+        # This include errors that causes target not to be reached
         # e.g 'Invalid url' or 'no internet connection'
-        return self.request_failed()
+        return self.request_started() and not self.target_reached()
 
     def errors(self):
         '''Returns True if there errors(target or client)'''
@@ -110,7 +110,9 @@ class CheckAsync(Check):
         return super().target_errors()
 
     async def client_errors(self):
-        return super().client_errors()
+        # Returns True if there were errors on client
+        # This include errors that causes target not to be reached
+        return self.request_started() and not await self.target_reached()
 
     async def errors(self):
         return  await self.client_errors() or await self.target_errors()
