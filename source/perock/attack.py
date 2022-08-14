@@ -62,7 +62,8 @@ class Attack(Attempt, Check):
 
         if not request_started:
             if target_reached:
-                err_msg = "Target cant be reached while request was not started"
+                err_msg = "Target cant be reached while request " +\
+                    "was not started"
                 raise Exception(err_msg)
             if request_failed:
                 err_msg = "Request cant fail if request was not started"
@@ -133,8 +134,9 @@ class Attack(Attempt, Check):
                 self._responce_msg = "Failed to crack target(failure)"
             elif self.success():
                 self._responce_msg = "Target was cracked(success)"
+            else:
+                self._responce_msg = "Target reached but confused"
         else:
-            self._responce_msg = "Target was not reached"
             if not self.request_started():
                 self._responce_msg = "Request was not started"
             elif self.request_failed():
@@ -143,8 +145,7 @@ class Attack(Attempt, Check):
             elif self.client_errors():
                 self._responce_msg = "Client experienced errors"
             else:
-                err_msg = "Target not reached for unknown reasons"
-                raise Exception(err_msg)
+                self._responce_msg = "Target not reached for unknown reasons"
 
     def isconfused(self):
         # Returns True the object is aware of state of responce
@@ -331,15 +332,15 @@ class AttackAsync(AttemptAsync, CheckAsync):
         success = await self.success()
    
         if target_reached:
-            self._responce_msg = "Target was reached"
             if target_errors:
                 self._responce_msg = "Target experienced errors"
             elif failure:
                 self._responce_msg = "Failed to crack target(failure)"
             elif success:
                 self._responce_msg = "Target was cracked(success)"
+            else:
+                self._responce_msg = "Target reached but confused"
         else:
-            self._responce_msg = "Target was not reached"
             if not request_started:
                 self._responce_msg = "Request was not started"
             elif request_failed:
@@ -348,8 +349,7 @@ class AttackAsync(AttemptAsync, CheckAsync):
             elif client_errors:
                 self._responce_msg = "Client experienced errors"
             else:
-                err_msg = "Target not reached for unknown reasons"
-                raise Exception(err_msg)
+                self._responce_msg = "Target not reached for unknown reasons"
 
 
     async def isconfused(self):
