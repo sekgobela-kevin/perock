@@ -2,4 +2,6 @@ requests
 aiohttp
 meinheld
 aiounittest
+prodius
+forcetable>=0.0.4 
 tox

@@ -44,9 +44,13 @@ class BForceSetUp(CommonTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Create passwords and usernames fields
-        cls.usernames_field = FieldFile("usernames", cls.usernames_file_path)
-        cls.passwords_field = FieldFile("passwords", cls.passwords_file_path)
+        # Create passwords and usernames fields.
+        # Set 'read_all' as True for file field if using multiple/parallel
+        # primary items on bforce object.
+        cls.usernames_field = FieldFile("usernames", cls.usernames_file_path,
+        read_all=True)
+        cls.passwords_field = FieldFile("passwords", cls.passwords_file_path,
+        read_all=True)
 
         # Set items name 
         cls.usernames_field.set_item_name("username")
@@ -72,12 +76,13 @@ class BForceSetUp(CommonTest):
 
         #attack = AttackSample(self._target, {"username":"THOMAS", "password":"marian"})
         #assert attack.success(), "Attack should be success"
+        
 
     def setup_table(self):
         # enable_callable_product=False
         # Enables use of itertools.product() for cartesian product
         # It should be True if max_parallel_primary_tasks > 1
-        self.table = Table(enable_callable_product=False)
+        self.table = Table()
         self.table.add_primary_field(self.usernames_field)
         self.table.add_field(self.passwords_field)
 
@@ -105,7 +110,6 @@ class BForceSetUp(CommonTest):
     def setup_bforce_object(self):
         self.bforce = bforce.BForce(self._target, self.table)
         self.bforce.set_attack_class(AttackSample)
-        self.bforce.set_max_parallel_primary_tasks(20)
 
     def start(self):
         # Calls .start() of bforce object
@@ -123,6 +127,13 @@ class BForceCommonTest(BForceSetUp):
         self.start()
         self.assertCountEqual(self.bforce.get_success_records(), self.accounts)
 
+    def test_parallel_primaty_tasks(self):        
+        # This is not reccomended for file fields.
+        # Set 'read_all' argument as True if using file field.
+        self.bforce.set_max_parallel_primary_tasks(20)
+        self.bforce.enable_optimise()
+        self.start()
+        self.assertCountEqual(self.bforce.get_success_records(), self.accounts)
 
 
 class BForceAsyncCommonTest(BForceCommonTest):
@@ -144,16 +155,24 @@ class BForceBlockCommonTest(BForceCommonTest):
         self.bforce.set_attack_class(AttackSample)
 
 
+class BForceThreadCommonTest(BForceCommonTest):
+    def setup_bforce_object(self):
+        self.bforce = bforce.BForceThread(self._target, self.table)
+        self.bforce.set_attack_class(AttackSample)
 
 
 class BForceTest(BForceCommonTest, unittest.TestCase):
     pass
 
+class BForceBlockTest(BForceBlockCommonTest, unittest.TestCase):
+    pass
+
 class BForceAsyncTest(BForceAsyncCommonTest, aiounittest.AsyncTestCase):
     pass
 
-class BForceBlockTest(BForceBlockCommonTest, unittest.TestCase):
+class BForceThreadTest(BForceThreadCommonTest, unittest.TestCase):
     pass
+
 
 
 

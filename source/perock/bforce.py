@@ -218,7 +218,7 @@ class BForceBase():
         # Primary item of record is added to success primary values
         if self._table.primary_field_exists():
             primary_field = self._table.get_primary_field()
-            primary_item = forcetable.get_record_primary_item(record, primary_field)
+            primary_item = forcetable.extract_record_primary_item(record, primary_field)
             # Use of lock can be removed on async version
             self._success_primary_items.add(primary_item)
             self._success_records.append(record)

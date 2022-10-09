@@ -218,7 +218,7 @@ class LoopSomeProducer(RecordsProducer):
     def should_return_item(self, record) -> bool:
         #raise NotImplementedError("should_return_item() not implemented")
         primary_field = self._table.get_primary_field()
-        primary_field_name = primary_field.get_item_name(True)
+        primary_field_name = primary_field.get_item_name()
         record_primary_item = record[primary_field_name]
         # Only return record if its primary item not in excluded
         # primary item
