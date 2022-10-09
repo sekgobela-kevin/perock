@@ -97,7 +97,7 @@ class LoopSomeProducer(RecordsProducer):
         self._excluded_primary_items = set()
         self._fields = self._table.get_fields()
         self._primary_field_exists = self._table.primary_field_exists()
-        self._max_parallel_primary_tasks = 1
+        self._max_multiple_primary_items = 1
 
         self._primary_grouped_records = iter(
             self._table.records_primary_grouped()
@@ -107,8 +107,8 @@ class LoopSomeProducer(RecordsProducer):
             self._current_primary_grouped_records
         )
 
-    def set_max_parallel_primary_tasks(self, total):
-        self._max_parallel_primary_tasks = total
+    def set_max_multiple_primary_items(self, total):
+        self._max_multiple_primary_items = total
 
     def add_excluded_primary_item(self, primary_item):
         self._excluded_primary_items.add(primary_item)
@@ -123,7 +123,7 @@ class LoopSomeProducer(RecordsProducer):
 
     def update_current_records(self):
         # Holds maximum parallel primary tasks
-        max_parallel_tasks = self._max_parallel_primary_tasks
+        max_parallel_tasks = self._max_multiple_primary_items
         # Holds current primary grouped records
         primary_grouped_records = self._current_primary_grouped_records
         while len(primary_grouped_records) < max_parallel_tasks:

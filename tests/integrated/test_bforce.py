@@ -81,7 +81,7 @@ class BForceSetUp(CommonTest):
     def setup_table(self):
         # enable_callable_product=False
         # Enables use of itertools.product() for cartesian product
-        # It should be True if max_parallel_primary_tasks > 1
+        # It should be True if max_multiple_primary_items > 1
         self.table = Table()
         self.table.add_primary_field(self.usernames_field)
         self.table.add_field(self.passwords_field)
@@ -130,7 +130,7 @@ class BForceCommonTest(BForceSetUp):
     def test_parallel_primaty_tasks(self):        
         # This is not reccomended for file fields.
         # Set 'read_all' argument as True if using file field.
-        self.bforce.set_max_parallel_primary_tasks(20)
+        self.bforce.set_max_multiple_primary_items(20)
         self.bforce.enable_optimise()
         self.start()
         self.assertCountEqual(self.bforce.get_success_records(), self.accounts)

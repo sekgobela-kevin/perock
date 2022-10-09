@@ -29,7 +29,7 @@ class ForcetableSetUp(CommonTest):
     def setup_table(self):
         # enable_callable_product=False
         # Enables use of itertools.product() for cartesian product
-        # It should be True if max_parallel_primary_tasks > 1
+        # It should be True if max_multiple_primary_items > 1
         self.table = forcetable.Table()
         self.table.add_primary_field(self.usernames_field)
         self.table.add_field(self.passwords_field)

@@ -157,7 +157,7 @@ runner_object.set_max_parallel_tasks(30)
 # Sets maximum numer of primary items executed at in parallel.
 # E.g multiple usernames can be tried in parrallel
 # This primary primary field in table
-#runner_object.set_max_parallel_primary_tasks(10)
+#runner_object.set_max_multiple_primary_items(10)
 
 # Maximum success records to cancel/stop runner.
 # Important if you have limit on number of success records.

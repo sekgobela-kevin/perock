@@ -87,7 +87,7 @@ class RunnerBaseCommonTest(RunnerBaseSetUp):
     #@timeout_decorator.timeout(5)
     def test_other_methods(self):
         self.runner.enable_cancel_immediately()
-        self.runner.set_max_parallel_primary_tasks(10)
+        self.runner.set_max_multiple_primary_items(10)
         self.start()
         self.assertEqual(len(self.runner.get_success_records()), 1)
 
@@ -96,7 +96,7 @@ class RunnerParallelCommonTest(RunnerBaseCommonTest):
     #@timeout_decorator.timeout(5)
     def test_other_methods(self):
         self.runner.enable_cancel_immediately()
-        self.runner.set_max_parallel_primary_tasks(10)
+        self.runner.set_max_multiple_primary_items(10)
         self.runner.set_max_workers(15)
         self.runner.set_max_parallel_tasks(100)
         self.start()

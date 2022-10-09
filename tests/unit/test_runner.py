@@ -69,8 +69,8 @@ class TestRunnerBaseCommon(TestRunnerBaseSetUp):
     def test_get_cracked_records(self):
         self.runner.get_cracked_records()
 
-    def test_set_max_parallel_primary_tasks(self):
-        self.runner.set_max_parallel_primary_tasks(10)
+    def test_set_max_multiple_primary_items(self):
+        self.runner.set_max_multiple_primary_items(10)
 
 
     def test_start(self):

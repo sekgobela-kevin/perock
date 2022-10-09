@@ -133,8 +133,8 @@ class TestBForceBaseCommon(TestBForceBaseSetUP):
     def test_get_producer_records(self):
         self.bforce.get_current_producer_method()()
 
-    def test_set_max_parallel_primary_tasks(self):
-        self.bforce.set_max_parallel_primary_tasks(10)
+    def test_set_max_multiple_primary_items(self):
+        self.bforce.set_max_multiple_primary_items(10)
 
 
     def test_get_next_producer_record(self):

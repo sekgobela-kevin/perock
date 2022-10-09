@@ -59,9 +59,9 @@ class RunnerBase():
         '''Sets maximum success records to cancel/stop attack'''
         self._bforce.set_max_success_records(total)
 
-    def set_max_parallel_primary_tasks(self, total):
+    def set_max_multiple_primary_items(self, total):
         '''Set maxumum primary items to execute in parrallel'''
-        self._bforce.set_max_parallel_primary_tasks(total)
+        self._bforce.set_max_multiple_primary_items(total)
 
     def get_success_records(self):
         '''Returns records that were cracked/successful'''
@@ -262,5 +262,5 @@ if __name__ == "__main__":
     runner.disable_optimise()
     runner.enable_cancel_immediately()
     runner.set_max_parallel_tasks(1000)
-    runner.set_max_parallel_primary_tasks(10)
+    runner.set_max_multiple_primary_items(10)
     asyncio.run(runner.run())

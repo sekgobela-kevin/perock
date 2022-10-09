@@ -96,7 +96,7 @@ class BForceBase():
 
         # This sets maximum parallel primary items tasks
         # e.g multiples usernames can be executed at same time.
-        self._max_parallel_primary_tasks = 1
+        self._max_multiple_primary_items = 1
 
         # producer records
         self._producer_records = iter(self.producer())
@@ -208,8 +208,8 @@ class BForceBase():
     def get_producer_records(self) -> Iterable[forcetable.Record]:
         return self.get_current_producer_method()()
 
-    def set_max_parallel_primary_tasks(self, total):
-        self._max_parallel_primary_tasks = total
+    def set_max_multiple_primary_items(self, total):
+        self._max_multiple_primary_items = total
 
 
 
@@ -321,8 +321,8 @@ class BForceBase():
         # Producer that loops through some records but would stop if
         # conditions are met.
         producer_ = producer.LoopSomeProducer(self._table)
-        producer_.set_max_parallel_primary_tasks(
-            self._max_parallel_primary_tasks
+        producer_.set_max_multiple_primary_items(
+            self._max_multiple_primary_items
         )
         # Get copy for tracking changes
         success_primary_items = self._success_primary_items.copy()
