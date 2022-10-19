@@ -90,6 +90,16 @@ class LoginPageAttack(attack.Attack):
         # That can improve request performance
         return requests.Session()
 
+    @classmethod
+    def close_session(cls, session):
+        session.close()
+
+
+    @classmethod
+    def close_responce(cls, responce):
+        #await responce.close()
+        pass
+
     def request(self):
         # Performs request with target and return responce
         if self.session_exists():
@@ -151,9 +161,20 @@ class LoginPageAttackAsync(attack.AttackAsync):
         self._session: aiohttp.ClientSession
 
     @classmethod
-    async def create_session(cls):
+    async def create_session(cls, *args, *kargs):
         # Creates session object to use with request
-        return aiohttp.ClientSession()
+        return aiohttp.ClientSession(*args, *kargs)
+
+    @classmethod
+    async def close_session(cls, session):
+        await session.close()
+
+
+    @classmethod
+    async def close_responce(cls, responce):
+        #await responce.close()
+        pass
+
 
     async def request(self):
         if self.session_exists():
