@@ -55,7 +55,7 @@ from .forcetable import Table
 from . import forcetable
 
 from . import producer
-from . import util
+
 
 # Not used
 #from .session import BForceSession
@@ -73,13 +73,16 @@ class BForceBase():
         self._target = target
         self._table = table
         self._optimise = optimise
-        self._primary_field = table.get_primary_field()
         self._fields = table.get_fields()
+        self._item_names = table.get_item_names()
 
         # If True, pending tasks will be stopped on first success.
         # producer and consumer will also be stopped.
         self._cancel_immediately = False
+        # Maximum success records
         self._max_success_records = None
+        # Maximum primary items with success(e.g 4 usernames success)
+        self._max_success_primary_items = None
 
         # Changed callback when producer or consumer completes
         self._producer_completed = False
@@ -91,15 +94,56 @@ class BForceBase():
 
         # Primary items of cracked records
         self._success_primary_items = set()
+        # Contains success/cracked record
         self._success_records = []
+        # Map containing primary items(keys) and success records(values)
+        self._success_primary_items_map = {}
+
+
+        # Primary items excluded from being bruteforced.
+        self._excluded_primary_items = set()
 
 
         # This sets maximum parallel primary items tasks
         # e.g multiples usernames can be executed at same time.
         self._max_multiple_primary_items = 1
+        # Maximum success records for primary item before switching.
+        # If reached, primary item records will be switched.
+        self._max_primary_item_success_records = 1
 
         # producer records
         self._producer_records = iter(self.producer())
+
+        # Callabck callback functions to be called on state change.
+        self._start_callback = lambda: None
+        self._done_callback = lambda: None
+        self._producer_switch_callback = None
+        #self._after_attack_callback = lambda: None
+
+        # # Producer related callback functions
+        # self._producer_done_callback = lambda: None
+        
+
+        # # Attack class related callbackfunctions
+        # self._target_reached_callback = None
+        # self._target_errors_callback = None
+        # self._client_errors_callback = None
+        # self._errors_callback = None
+        # self._success_callback = None
+        # self._failure_callback = None
+
+    # Start for setting callback functions
+    def set_start_callback(self, callback):
+        self._start_callback = callback
+
+    def set_done_callback(self, callback):
+        self._done_callback = callback 
+
+    def set_producer_switch_callback(self, callback):
+        self._producer_switch_callback = callback 
+
+    # def set_after_attack_callback(self, callback):
+    #     self._after_attack_callback = callback 
 
     def enable_optimise(self):
         self._optimise = True
@@ -116,16 +160,61 @@ class BForceBase():
     def set_max_success_records(self, total):
         self._max_success_records = total
 
+    def set_max_multiple_primary_items(self, total):
+        self._max_multiple_primary_items = total
+
+    def set_max_success_primary_items(self, total):
+        self._max_success_primary_items = total
+
+    def set_max_primary_item_success_records(self, total):
+        self._max_primary_item_success_records = total
+
+    def get_table(self):
+        # Gets table with records to bruteforce.
+        return self._table
+
+    def get_excluded_primary_items(self):
+        # Excluded primary items may contain success primary items.
+        return self._excluded_primary_items
+
     def get_success_records(self):
         return self._success_records
 
+    def get_success_primary_items(self):
+        return self._success_primary_items
 
-    def create_session(self):
+    def primary_item_successful(self, primary_item):
+        # Checks if primary item has successful records
+        return primary_item in self._success_primary_items_map
+
+    def get_primary_success_records(self, primary_item):
+        # Gets successful records for primary item
+        if self.primary_item_successful(primary_item):
+            return self._success_primary_items_map[primary_item]
+        return []
+
+    def add_excluded_primary_items(self, primary_item):
+        # Adds primary item to excluded primary items.
+        self._excluded_primary_items.add(primary_item)
+
+    def remove_excluded_primary_items(self, primary_item):
+        # Removes primary item from excluded primary items.
+        self._excluded_primary_items.discard(primary_item)
+
+    def should_optimise(self):
+        # Checks if optimisations should be applied.
+        return self._optimise and self._table.primary_field_exists()
+
+    def is_primary_optimised(self):
+        # Checks primary optimations are enabled.
+        return self.should_optimise()
+
+    def create_session(self, *args, **kwargs):
         # Creates session object to be shared with attack objects
         attack_class = self.get_attack_class()
         try:
             # Ask attack class to create session
-            session = attack_class.create_session()
+            session = attack_class.create_session(*args, **kwargs)
         except NotImplementedError:
             # Return None if attack class cant create session
             return None
@@ -162,7 +251,7 @@ class BForceBase():
         # Close session object shared by attack objects
         if self.session_exists():
             session = self.get_session()
-            util.try_close(session)
+            self.get_attack_class().close_session(session)
     # End: session methods
 
 
@@ -199,7 +288,7 @@ class BForceBase():
 
 
     def get_current_producer_method(self):
-        if self._optimise:
+        if self.should_optimise():
             producer_method = self._producer_loop_some
         else:
             producer_method = self._producer_loop_all
@@ -208,24 +297,54 @@ class BForceBase():
     def get_producer_records(self) -> Iterable[forcetable.Record]:
         return self.get_current_producer_method()()
 
-    def set_max_multiple_primary_items(self, total):
-        self._max_multiple_primary_items = total
-
 
 
     def attack_success_callback(self, attack_object, record):
-        # Callback called when theres success
-        # Primary item of record is added to success primary values
+        # Method is called when there is succcess in one of records.
+        # Record is appended to to success records.
+        self._success_records.append(record)
+
         if self._table.primary_field_exists():
+            # Primary field is required in this block.
+            # Optimisations are performed to speed bruteforce.
             primary_field = self._table.get_primary_field()
-            primary_item = forcetable.extract_record_primary_item(record, primary_field)
-            # Use of lock can be removed on async version
+            primary_item = forcetable.extract_record_primary_item(
+                record, primary_field
+            )
+            # Adds primary item to success and excluded records.
             self._success_primary_items.add(primary_item)
-            self._success_records.append(record)
+            # Adds success records grouped by primary item.
+            if primary_item not in self._success_primary_items_map:
+                self._success_primary_items_map[primary_item] = []
+            self._success_primary_items_map[primary_item].append(record)
+            
+
+            # Performs actions based on primary item and record
+
+            # Cancels producer/consumer when maximum primary items have
+            # been successfully bruteforced.
+            # e.g when 4 usernames have been bruteforced successfully.
+            if self._max_success_primary_items is not None:
+                primary_items = self._success_primary_items
+                if self._max_success_primary_items <= len(primary_items):
+                    self.cancel_consumer_producer()
+
+            # Excludes primary item and its record when maximum success
+            # records have been reached.
+            primary_records = self._success_primary_items_map[primary_item]
+            if self._max_primary_item_success_records <= len(primary_records):
+                self._excluded_primary_items.add(primary_item)
+
+
+        if self._optimise:
+            # Single field behaves like primary field.
+            if self._max_success_records is None and len(self._fields)==1:
+                self.cancel_consumer_producer()
+
 
         # Cancels consumer and producer on when max success records
         # is reached.
-        if self._max_success_records != None:
+        if self._max_success_records is not None:
             # Not sure self._success_records will ever be larger
             # self._max_success_records.
             # Thats why '>=' was used as comparison operator.
@@ -233,7 +352,7 @@ class BForceBase():
                 # Cancels producer and consumer
                 self.cancel_consumer_producer()
 
-        # Cancels consumer and producer when _cancel_immediately is True
+        # Cancels consumer and producer when _cancel_immediately is enabled.
         if self._cancel_immediately:
             self.cancel_consumer_producer()
 
@@ -291,7 +410,7 @@ class BForceBase():
 
     def running(self):
         # Returns True when attack is taking place
-        return self._consumer_completed or self._producer_completed
+        return self._consumer_completed and self._producer_completed
 
     def cancel_producer(self):
         # Requests producer to stop running
@@ -322,17 +441,20 @@ class BForceBase():
         # conditions are met.
         producer_ = producer.LoopSomeProducer(self._table)
         producer_.set_max_multiple_primary_items(
-            self._max_multiple_primary_items
-        )
+            self._max_multiple_primary_items)
+        if self._producer_switch_callback:
+            producer_.set_producer_switch_callback(
+                self._producer_switch_callback
+            )
         # Get copy for tracking changes
-        success_primary_items = self._success_primary_items.copy()
+        excluded_primary_items = self._excluded_primary_items.copy()
         for record in producer_.get_items():
             # Check if success primary items has changed
-            if success_primary_items != self._success_primary_items:
+            if excluded_primary_items != self._excluded_primary_items:
                 # Update copy for tracking changes
-                success_primary_items = self._success_primary_items.copy()
+                excluded_primary_items = self._excluded_primary_items.copy()
                 # Update excluded primary items with success primary items
-                producer_.set_excluded_primary_item(success_primary_items)
+                producer_.add_excluded_primary_items(excluded_primary_items)
             yield record
 
     def producer(self):
@@ -352,8 +474,7 @@ class BForceBase():
             except StopIteration:
                 # Out of records
                 break
-        # Producer completed and ran out of records
-        # None means theres no any Records left
+        # Producer completed, ran out of records or consumer completed.
         return None
 
     def get_next_producer_records(self, max_records:int):
@@ -534,12 +655,16 @@ class BForceExecutor(BForceParallel):
 
     def start(self):
         '''Starts attack into system identified by target'''
+        self._start_callback()
         self._executor_is_default = self._executor == None
         self._executor = self.create_get_executor()
-        self.consumer()
-        if not self._executor_is_default:
-            self._executor.shutdown(True)
-        self.close_session()
+        try:
+            self.consumer()
+        finally:
+            if not self._executor_is_default:
+                self._executor.shutdown(True)
+            self.close_session()
+        self._done_callback()
 
 
 class BForceThread(BForceExecutor):
@@ -657,7 +782,9 @@ class BForceAsync(BForceParallel):
         # Close session object shared by attack objects
         if self.session_exists():
             session = self.get_session()
-            await util.try_close_async(session)
+            # Session is now closed by attack class.
+            attack_class = self.get_attack_class()
+            await attack_class.close_session(session)
     # End: session methods
 
 
@@ -691,7 +818,7 @@ class BForceAsync(BForceParallel):
                 # this line can speed request performance
                 attack_object.set_session(session)
             # .start_until_retries() needs to be coroutine method
-            await attack_object.start_until_retries(
+            await attack_object.start(
                 self.consumer_should_continue
             )
             await self.handle_attack_results(attack_object, record)
@@ -726,11 +853,19 @@ class BForceAsync(BForceParallel):
         await asyncio.gather(*tasks, return_exceptions=False)
 
     async def consumer(self):
-        # Consumes items in records_queue
+        # Consumes records in records producer
         tasks:Set[Future] = set()
         count = 0
+        # Asynio does not have max workers(not limited like threads).
+        # Minimum of max workers and current max parallel tasks is used.
+        # Thats similar to how ThreadPoolExecutor/Executors behaves.
+        if self._max_workers is not None:
+            max_workers = self._max_workers
+        else:
+            max_workers = self._max_parallel_tasks
+        max_parallel_tasks = min(max_workers, self._max_parallel_tasks)
         # The while loop can be replaced by Semaphore object
-        while count < self._max_parallel_tasks:
+        while count < max_parallel_tasks:
             record = self.get_next_producer_record()
             if record != None:
                 task = self.handle_attack_recursive_future(record)
@@ -748,8 +883,12 @@ class BForceAsync(BForceParallel):
 
 
     async def start(self):
-        await self.consumer()
-        await self.close_session()
+        self._start_callback()
+        try:
+            await self.consumer()
+        finally:
+            await self.close_session()
+        self._done_callback()
 
 
 
@@ -782,7 +921,12 @@ class BForceBlock(BForceBase):
         self.consumer_done_callback()
 
     def start(self):
-        self.consumer()
+        self._start_callback()
+        try:
+            self.consumer()
+        finally:
+            self.close_session()
+        self._done_callback()
 
 
 class BForce(BForceThread):

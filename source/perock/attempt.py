@@ -73,20 +73,9 @@ class Attempt():
         return True
 
     @classmethod
-    def create_session(cls):
+    def create_session(cls, *args, **kwargs):
         # Creates session object to use with request
         raise NotImplementedError
-       
-
-    def close_session(self):
-        '''Closes session object'''
-        if self.session_exists():
-            util.try_close(self._session)
-
-    def close_responce(self):
-        "Closes responce object"
-        if self._responce:
-            util.try_close(self._responce)
     
     def session_exists(self) -> bool:
         '''Returns True if session exists'''
@@ -145,10 +134,19 @@ class Attempt():
         self._start()
         self.after_request()
 
+    @classmethod
+    def close_session(cls, session):
+        '''Closes session object'''
+        util.try_close(session)
+
+    @classmethod
+    def close_responce(cls, response):
+        "Closes responce object"
+        if response is not None:
+            util.try_close(response)
+
     def close(self):
-        #self.close_session()
-        if self._responce:
-            self.close_responce()
+        self.close_responce(self._responce)
 
     def __enter__(self):
         return self
@@ -165,19 +163,20 @@ class AttemptAsync(Attempt):
         super().__init__(target, data, retries)
 
     @classmethod
-    async def create_session(cls):
+    async def create_session(cls, *args, **kwargs):
         # Creates session object to use with request
         raise NotImplementedError
 
-    async def close_session(self):
+    @classmethod
+    async def close_session(cls, session):
         '''Closes session object'''
-        if self.session_exists():
-            await util.try_close_async(self._session)
+        if session is not None:
+            await util.async_try_close(session)
 
-    async def close_responce(self):
+    async def close_responce(cls, response):
         "Closes responce object"
-        if self._responce:
-            await util.try_close_async(self._responce)
+        if response is not None:
+            await util.async_try_close(response)
 
     async def before_request(self):
         super().before_request()
@@ -213,9 +212,7 @@ class AttemptAsync(Attempt):
         await self.after_request()
 
     async def close(self):
-        #self.close_session()
-        if self._responce:
-            await self.close_responce()
+        await self.close_responce(self._responce)
 
     async def __aenter__(self):
         return self

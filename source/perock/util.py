@@ -62,7 +62,7 @@ def cast_to_class(
 
 
 
-def try_close(__object):
+def _try_close(__object):
     # Attempts to close provided object
     try:
         # This should work in most cases
@@ -76,7 +76,7 @@ def try_close(__object):
         except (AttributeError):
             pass
 
-async def try_close_async(__object):
+async def _async_try_close(__object):
     # Attempts to close provided object asynchonously
     try:
         # This should work in most cases
@@ -90,7 +90,20 @@ async def try_close_async(__object):
                 pass
         except (AttributeError, TypeError):
             # Let try close it the usual way 
-            try_close(__object)
+            _try_close(__object)
+
+
+def try_close(__object, raise_exception=True):
+    try:
+        _try_close(__object)
+    except Exception as e:
+        if raise_exception: raise e
+
+async def async_try_close(__object, raise_exception=True):
+    try:
+        await _async_try_close(__object)
+    except Exception as e:
+        if raise_exception: raise e
 
 
 if __name__ == "__main__":

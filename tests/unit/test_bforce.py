@@ -69,6 +69,15 @@ class TestBForceBaseSetUP(TestTableSetUp, TestAttemptSetUp):
 
 
 class TestBForceBaseCommon(TestBForceBaseSetUP):
+    def test_set_start_callback(self):
+        self.bforce.set_start_callback(lambda: None)
+
+    def test_set_done_callback(self):
+        self.bforce.set_done_callback(lambda: None)
+
+    def test_set_producer_switch_callback(self):
+        self.bforce.set_producer_switch_callback(lambda r: None)
+
     def test_enable_cancel_immediately(self):
         self.bforce.enable_cancel_immediately()
 

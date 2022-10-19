@@ -17,6 +17,7 @@ Languages: Python 3
 '''
 from concurrent import futures
 import typing
+import time
 
 from . import attack
 from . import bforce
@@ -25,19 +26,41 @@ from . import forcetable
 
 class RunnerBase():
     '''Base class for running bruteforce attack on target'''
+    _bforce_type = bforce.BForceBase
+
     def __init__(self, 
     attack_class: typing.Type[attack.Attack], 
     target: typing.Any,
     table: forcetable.Table,
     optimise = False) -> None:
-        self._bforce = self.bforce_class(target, table, optimise)
+        self._runner_start_time = 0
+        self._runner_end_time = 0
+        self._bforce = self._bforce_type(target, table, optimise)
         self._bforce.set_attack_class(attack_class)
 
-    @property
-    def bforce_class(self) -> typing.Type[bforce.BForceBase]:
-        # Refers to bforce class to be used by runner
-        raise NotImplementedError
+    def _update_runner_start_time(self):
+        # Updates start time of runner
+        self._runner_start_time = time.time()
 
+    def _update_runner_end_time(self):
+        # Updates start time of runner
+        self._runner_end_time = time.time()
+
+    def set_start_callback(self, callback):
+        '''Sets function to be called at start of bruteforce session'''
+        self._bforce.set_start_callback(callback)
+
+    def set_done_callback(self, callback):
+        '''Sets function to be called when bruteforce completes'''
+        self._bforce.set_done_callback(callback)
+
+    def set_switch_callback(self, callback):
+        '''Sets function to be called when switching primary records
+        
+        Function is expected to accept single argument being record.
+        Realise that record can be None which means primary records reached
+        the end due to all of them being used.'''
+        self._bforce.set_producer_switch_callback(callback)
 
     def enable_optimise(self):
         '''Enables optimisations(requires primary column)'''
@@ -60,8 +83,53 @@ class RunnerBase():
         self._bforce.set_max_success_records(total)
 
     def set_max_multiple_primary_items(self, total):
-        '''Set maxumum primary items to execute in parrallel'''
+        '''Set maximum primary items to execute in parrallel'''
         self._bforce.set_max_multiple_primary_items(total)
+
+    def set_max_success_primary_items(self, total):
+        '''Set maximum primary items with success record'''
+        self._bforce.set_max_success_primary_items(total)
+    
+    def set_max_primary_item_success_records(self, total):
+        '''Set maximum success records for each primary item'''
+        self._bforce.set_max_primary_item_success_records(total)
+
+    def add_excluded_primary_items(self, primary_item):
+        '''Adds primary field item to be excluded'''
+        self._bforce.add_excluded_primary_items(primary_item)
+
+    def remove_excluded_primary_items(self, primary_item):
+        '''Removes primary field item from excluded primary field'''
+        self._bforce.remove_excluded_primary_items(primary_item)
+
+
+    def get_excluded_primary_items(self):
+        '''Gets excluded primary field items'''
+        return self._bforce.get_excluded_primary_items()
+
+    def get_table(self):
+        '''Gets table with records to bruteforce.'''
+        return self._bforce.get_table()
+
+    def is_primary_optimised(self):
+        '''Checks primary optimations are enabled.'''
+        return self._bforce.is_primary_optimised()
+
+    def session_exists(self):
+        '''Checks if session exists'''
+        return self._bforce.session_exists()
+
+    def set_session(self, session):
+        '''Sets session object to be used with runner'''
+        return self._bforce.set_session(session)
+
+    def get_session(self):
+        '''Gets session object used by runner'''
+        return self._bforce.get_session()
+
+    def create_session(self, *args, **kwargs):
+        '''Create session exatly as runner would create it'''
+        return self._bforce.create_session(*args, **kwargs)
 
     def get_success_records(self):
         '''Returns records that were cracked/successful'''
@@ -71,8 +139,30 @@ class RunnerBase():
         '''Returns records that were cracked/successful'''
         return self.get_success_records()
 
+    def get_runner_time(self):
+        '''Gets elapsed time of runner'''
+        return self._runner_end_time - self._runner_start_time
+
+    def is_running(self):
+        '''Checks if runner is currently running'''
+        return self._bforce.running()
+
+    def started(self):
+        '''Checks if runner if runner was ever started running'''
+        return self._runner_start_time > 0 or self.is_running()
+
+    def completed(self):
+        '''Checks if runner if runner completed running'''
+        return self.started() and not self.is_running()
+
+    def stop(self):
+        '''Stops runner and terminate any pending records.'''
+        self._bforce.cancel()
+
     def start(self):
+        self._update_runner_start_time()
         self._bforce.start()
+        self._update_runner_end_time()
 
     def run(self):
         '''Entry point to starting attack on target'''
@@ -81,19 +171,7 @@ class RunnerBase():
 
 class RunnerParallel(RunnerBase):
     '''Base class for running bruteforce attack in parallel'''
-    def __init__(
-        self, 
-        attack_class: typing.Type[attack.Attack], 
-        target: typing.Any, 
-        table: forcetable.Table, 
-        optimise=False) -> None:
-        super().__init__(attack_class, target, table, optimise)
-        self._bforce: bforce.BForceParallel
-
-    @property
-    def bforce_class(self):
-        # Refers to bforce class to be used by runner
-        return bforce.BForceParallel
+    _bforce_type = bforce.BForceParallel
 
     def set_max_parallel_tasks(self, total_tasks: int):
         '''Sets maximum number of tasks to run in parallel'''
@@ -106,19 +184,7 @@ class RunnerParallel(RunnerBase):
 
 class RunnerExecutor(RunnerParallel):
     '''Runs bruteforce attack on parallel using executor'''
-    def __init__(
-        self, 
-        attack_class: typing.Type[attack.Attack], 
-        target: typing.Any, 
-        table: forcetable.Table, 
-        optimise=False) -> None:
-        super().__init__(attack_class, target, table, optimise)
-        self._bforce: bforce.BForceExecutor
-
-    @property
-    def bforce_class(self):
-        # Refers to bforce class to be used by runner
-        return bforce.BForceExecutor
+    _bforce_type = bforce.BForceExecutor
 
     def set_executor(self, executor):
         '''Sets executor to use to execute tasks'''
@@ -127,23 +193,13 @@ class RunnerExecutor(RunnerParallel):
 
 class RunnerThread(RunnerExecutor):
     '''Runs bruteforce attack using threads'''
-    def __init__(
-        self, 
-        attack_class: typing.Type[attack.Attack], 
-        target: typing.Any, 
-        table: forcetable.Table, 
-        optimise=False) -> None:
-        super().__init__(attack_class, target, table, optimise)
-        self._bforce: bforce.BForceThread
-
-    @property
-    def bforce_class(self):
-        # Refers to bforce class to be used by runner
-        return bforce.BForceThread
+    _bforce_type = bforce.BForceThread
 
 
 # class RunnerProcess(RunnerExecutor):
 #     '''Runs bruteforce attack using multi-proccessing'''
+#     _bforce_type = bforce.BForceProcess
+
 #     def __init__(
 #         self, 
 #         attack_class: typing.Type[attack.Attack], 
@@ -161,22 +217,12 @@ class RunnerThread(RunnerExecutor):
 
 class RunnerAsync(RunnerParallel):
     '''Runs bruteforce attack on target using asyncio'''
-    def __init__(
-        self, 
-        attack_class: typing.Type[attack.AttackAsync], 
-        target: typing.Any, 
-        table: forcetable.Table, 
-        optimise=False) -> None:
-        super().__init__(attack_class, target, table, optimise)
-        self._bforce: bforce.BForceAsync
-
-    @property
-    def bforce_class(self):
-        # Refers to bforce class to be used by runner
-        return bforce.BForceAsync
+    _bforce_type = bforce.BForceAsync
 
     async def start(self):
+        self._update_runner_start_time()
         await self._bforce.start()
+        self._update_runner_end_time()
 
     async def run(self):
         await self.start()
@@ -184,19 +230,7 @@ class RunnerAsync(RunnerParallel):
 
 class RunnerBlock(RunnerBase):
     '''Runs bruteforce attack on target synchronously(blocking)'''
-    def __init__(
-        self, 
-        attack_class: typing.Type[attack.Attack], 
-        target: typing.Any, 
-        table: forcetable.Table, 
-        optimise=False) -> None:
-        super().__init__(attack_class, target, table, optimise)
-        self._bforce: bforce.BForceBlock
-
-    @property
-    def bforce_class(self):
-        # Refers to bforce class to be used by runner
-        return bforce.BForceBlock
+    _bforce_type = bforce.BForceBlock
 
 
 class Runner(RunnerThread):

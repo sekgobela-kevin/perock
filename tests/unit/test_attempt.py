@@ -91,13 +91,11 @@ class TestAttemptCommon(TestAttemptSetUp):
             self.attempt.create_session()
 
     def test_close_session(self):
-        self.attempt.set_session(self._session)
-        self.attempt.close_session()
+        self.attempt.close_session(self._session)
         self.assertTrue(self._session.closed)
 
     def test_close_responce(self):
-        self.attempt.set_responce(self._responce)
-        self.attempt.close_responce()
+        self.attempt.close_responce(self._responce)
         self.assertTrue(self._responce.closed)
         
 
@@ -160,13 +158,11 @@ class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
             await self.attempt.create_session()
 
     async def test_close_session(self):
-        self.attempt.set_session(self._session)
-        await self.attempt.close_session()
+        await self.attempt.close_session(self._session)
         self.assertTrue(self._session.closed)
 
     async def test_close_responce(self):
-        self.attempt.set_responce(self._responce)
-        await self.attempt.close_responce()
+        await self.attempt.close_responce(self._responce)
         self.assertTrue(self._responce.closed)
 
     async def test_get_responce(self):

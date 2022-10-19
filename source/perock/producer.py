@@ -22,14 +22,21 @@ class ProducerBase():
         self._external_item_return_callback = lambda item: None
         self._external_item_return_fail_callback = lambda item: None
 
-    def set_cancel_callback(self, callaback: Callable):
-        self._external_cancel_callback = callaback
+    def set_cancel_callback(self, callback: Callable):
+        self._external_cancel_callback = callback
 
-    def set_item_return_callback(self, callaback: Callable):
-        self._external_item_return_callback = callaback
+    def set_item_return_callback(self, callback: Callable):
+        self._external_item_return_callback = callback
 
-    def set_return_fail_callback(self, callaback: Callable):
-        self._external_item_return_fail_callback = callaback
+    def set_return_fail_callback(self, callback: Callable):
+        self._external_item_return_fail_callback = callback
+
+
+    def set_cancel_callable(self, callable_):
+        self._external_cancel_callable = callable_
+
+    def set_item_return_callable(self, callable_):
+        self._external_item_return_callable = callable_
 
     def fetch_items(self) -> Iterable:
         # Fetches items from items_source
@@ -39,17 +46,12 @@ class ProducerBase():
         #raise NotImplementedError("should_return_item() not implemented")
         return True
 
+    def filter_items(self, fetched_items):
+        return fetched_items
+
     def get_items(self) -> Iterator:
-        for item in self._fetched_items:
-            if self._producer_should_cancel:
-                self._cancel_callback(item)
-                break
-            elif self.should_return_item(item):
-                self._item_return_callback(item)
-                yield item
-            else:
-                self._item_return_fail_callback(item)
-                pass
+        # Filtering is performed while getting items.
+        return self.filter_items(self._fetched_items)
 
     def _item_return_fail_callback(self, item):
         # Called when item couldnt be returned by producer
@@ -83,6 +85,19 @@ class RecordsProducer(ProducerBase):
     def fetch_items(self) -> Iterable[forcetable.Record]:
         return iter(self._table)
 
+    def filter_items(self, fetched_items):
+        # Filters fetched items while calling callback functions.
+        for item in fetched_items:
+            if self._producer_should_cancel:
+                self._cancel_callback(item)
+                break
+            elif self.should_return_item(item):
+                self._item_return_callback(item)
+                yield item
+            else:
+                self._item_return_fail_callback(item)
+                pass
+
 
 class LoopAllProducer(RecordsProducer):
     '''Producer for records that loops and check each record'''
@@ -97,7 +112,11 @@ class LoopSomeProducer(RecordsProducer):
         self._excluded_primary_items = set()
         self._fields = self._table.get_fields()
         self._primary_field_exists = self._table.primary_field_exists()
+
+        # Allows multiple primary items to be tried
         self._max_multiple_primary_items = 1
+        # Maximum success records for primary item before swicthing.
+        self._max_primary_item_records = 1
 
         self._primary_grouped_records = iter(
             self._table.records_primary_grouped()
@@ -107,19 +126,41 @@ class LoopSomeProducer(RecordsProducer):
             self._current_primary_grouped_records
         )
 
+        # External callback functions
+        self._producer_switch_callback = None
+
+        # Callable to decide if producer should switch.
+        self._producer_switch_records_callable = None
+
+    def set_producer_switch_callback(self, callback):
+        # Sets callback when producer switches
+        self._producer_switch_callback = callback
+
+
     def set_max_multiple_primary_items(self, total):
         self._max_multiple_primary_items = total
+
+    def set_max_primary_item_records(self, total):
+        self._max_primary_item_records = total
+
+
+    def set_producer_switch_records_callable(self, callable_):
+        self._should_switch_records_callable = callable_
+
 
     def add_excluded_primary_item(self, primary_item):
         self._excluded_primary_items.add(primary_item)
 
-    def set_excluded_primary_item(self, primary_items):
-        # Sets primary items of records to be excluded.
-        # Records with these primary items wont be returned by producer.
-        self._excluded_primary_items = primary_items
+    def add_excluded_primary_items(self, primary_items):
+        for item in primary_items:
+            self.add_excluded_primary_item(item)
 
-    def remove_excluded_primary_item(self, primary_item):
-        self._excluded_primary_items.discard(primary_item)
+    def remove_excluded_primary_item(self, primary_items):
+        for item in primary_items:
+            self.add_excluded_primary_item(item)
+
+    def remove_excluded_primary_items(self, primary_item):
+        self.remove_excluded_primary_item(primary_item)
 
     def update_current_records(self):
         # Holds maximum parallel primary tasks
@@ -128,7 +169,7 @@ class LoopSomeProducer(RecordsProducer):
         primary_grouped_records = self._current_primary_grouped_records
         while len(primary_grouped_records) < max_parallel_tasks:
             try:
-                # Get records and wrap the in iterator
+                # Get records and wrap them in iterator
                 records = iter(next(self._primary_grouped_records))
             except StopIteration:
                 # Breaks as we ran out of records
@@ -158,7 +199,7 @@ class LoopSomeProducer(RecordsProducer):
         self._update_current_records_cycle()
 
     def current_records_empty(self):
-        # CHecks if current records are empty
+        # Checks if current records are empty
         return len(self._current_primary_grouped_records) == 0
 
     def get_next_records(self):
@@ -206,10 +247,11 @@ class LoopSomeProducer(RecordsProducer):
                     if self.should_switch_to_next_records(record):
                         # Remove records from current primary records
                         self.remove_from_current_records(records)
-                        self.switch_to_next_records_callack(records)
+                        self.switch_to_next_records_callback(record)
                     yield record
                 else:
                     # Ran out of records
+                    self.switch_to_next_records_callback(record)
                     break
         else:
             err_msg = "Current producer requires primary field"
@@ -226,14 +268,18 @@ class LoopSomeProducer(RecordsProducer):
 
     def should_switch_to_next_records(self, record=None):
         # Returns True if producer should swicth to next primary records
-        # Likely to be when record cannot be returned
-        if record == None:
+        if record is None:
             return False
+        elif self._producer_switch_records_callable:
+            return self._producer_switch_records_callable(record)
         else:
             return not self.should_return_item(record)
 
-    def switch_to_next_records_callack(self, records):
-        pass
+    def switch_to_next_records_callback(self, record):
+        # Called when primary record are swiched.
+        # Record is last record before swicth or None.
+        if self._producer_switch_callback:
+            self._producer_switch_callback(record)
     
 
 
@@ -260,7 +306,7 @@ if __name__ == "__main__":
     table.add_field(passwords_col)
 
     producer = LoopSomeProducer(table)
-    producer.set_excluded_primary_item(range(10))
+    producer.set_excluded_primary_items(range(10))
     producer.add_excluded_primary_item(1)
     print(len(list(producer.get_items())))
 
