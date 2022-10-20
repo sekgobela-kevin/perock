@@ -317,8 +317,10 @@ class BForceBase():
             if primary_item not in self._success_primary_items_map:
                 self._success_primary_items_map[primary_item] = []
             self._success_primary_items_map[primary_item].append(record)
-            
 
+
+
+        if self.is_primary_optimised():
             # Performs actions based on primary item and record
 
             # Cancels producer/consumer when maximum primary items have
@@ -336,7 +338,7 @@ class BForceBase():
                 self._excluded_primary_items.add(primary_item)
 
 
-        if self._optimise:
+        if self._optimise and not self._table.primary_field_exists():
             # Single field behaves like primary field.
             if self._max_success_records is None and len(self._fields)==1:
                 self.cancel_consumer_producer()
