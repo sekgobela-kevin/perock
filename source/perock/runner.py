@@ -90,17 +90,25 @@ class RunnerBase():
         '''Set maximum primary items with success record'''
         self._bforce.set_max_success_primary_items(total)
     
-    def set_max_primary_item_success_records(self, total):
+    def set_max_primary_success_records(self, total):
         '''Set maximum success records for each primary item'''
-        self._bforce.set_max_primary_item_success_records(total)
+        self._bforce.set_max_primary_success_records(total)
 
-    def add_excluded_primary_items(self, primary_item):
+    def add_excluded_primary_item(self, primary_item):
         '''Adds primary field item to be excluded'''
-        self._bforce.add_excluded_primary_items(primary_item)
+        self._bforce.add_excluded_primary_item(primary_item)
 
-    def remove_excluded_primary_items(self, primary_item):
+    def add_excluded_primary_items(self, primary_items):
+        '''Adds primary field items to be excluded'''
+        self._bforce.add_excluded_primary_items(primary_items)
+
+    def remove_excluded_primary_item(self, primary_item):
         '''Removes primary field item from excluded primary field'''
-        self._bforce.remove_excluded_primary_items(primary_item)
+        self._bforce.remove_excluded_primary_item(primary_item)
+
+    def remove_excluded_primary_items(self, primary_items):
+        '''Removes primary field items from excluded primary field'''
+        self._bforce.remove_excluded_primary_items(primary_items)
 
 
     def get_excluded_primary_items(self):

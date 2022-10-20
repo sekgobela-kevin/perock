@@ -109,7 +109,7 @@ class BForceBase():
         self._max_multiple_primary_items = 1
         # Maximum success records for primary item before switching.
         # If reached, primary item records will be switched.
-        self._max_primary_item_success_records = 1
+        self._max_primary_success_records = 1
 
         # producer records
         self._producer_records = iter(self.producer())
@@ -166,8 +166,8 @@ class BForceBase():
     def set_max_success_primary_items(self, total):
         self._max_success_primary_items = total
 
-    def set_max_primary_item_success_records(self, total):
-        self._max_primary_item_success_records = total
+    def set_max_primary_success_records(self, total):
+        self._max_primary_success_records = total
 
     def get_table(self):
         # Gets table with records to bruteforce.
@@ -193,13 +193,23 @@ class BForceBase():
             return self._success_primary_items_map[primary_item]
         return []
 
-    def add_excluded_primary_items(self, primary_item):
+    def add_excluded_primary_item(self, primary_item):
         # Adds primary item to excluded primary items.
-        self._excluded_primary_items.add(primary_item)
+         self._excluded_primary_items.add(primary_item)
 
-    def remove_excluded_primary_items(self, primary_item):
+    def add_excluded_primary_items(self, primary_items):
+        # Adds primary items to excluded primary items.
+        for item in primary_items:
+            self.add_excluded_primary_item(item)
+
+    def remove_excluded_primary_item(self, primary_item):
         # Removes primary item from excluded primary items.
         self._excluded_primary_items.discard(primary_item)
+
+    def remove_excluded_primary_items(self, primary_items):
+        # Removes primary items from excluded primary items.
+        for item in primary_items:
+            self.remove_excluded_primary_item(item)
 
     def should_optimise(self):
         # Checks if optimisations should be applied.
@@ -334,7 +344,7 @@ class BForceBase():
             # Excludes primary item and its record when maximum success
             # records have been reached.
             primary_records = self._success_primary_items_map[primary_item]
-            if self._max_primary_item_success_records <= len(primary_records):
+            if self._max_primary_success_records <= len(primary_records):
                 self._excluded_primary_items.add(primary_item)
 
 
