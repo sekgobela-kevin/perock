@@ -37,6 +37,7 @@ import multiprocessing
 import time
 
 import asyncio
+from concurrent import futures
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import Future
@@ -55,6 +56,7 @@ from .forcetable import Table
 from . import forcetable
 
 from . import producer
+from . import exceptions
 
 
 # Not used
@@ -67,7 +69,7 @@ from . import producer
 class BForceBase():
     '''Base class for performing bruteforce on target with provided
     attack class and table object'''
-    base_attack_class = Attack
+    _base_attack_type = Attack
 
     def __init__(self, target, table:Table, optimise=False) -> None:
         self._target = target
@@ -76,15 +78,18 @@ class BForceBase():
         self._fields = table.get_fields()
         self._item_names = table.get_item_names()
 
+        # Attack class/type to use with bforce
+        self._attack_class = None
+
         # If True, pending tasks will be stopped on first success.
-        # producer and consumer will also be stopped.
+        # producer and _consumer will also be stopped.
         self._cancel_immediately = False
         # Maximum success records
         self._max_success_records = None
         # Maximum primary items with success(e.g 4 usernames success)
         self._max_success_primary_items = None
 
-        # Changed callback when producer or consumer completes
+        # Changed callback when producer or _consumer completes
         self._producer_completed = False
         self._consumer_completed = False
 
@@ -267,24 +272,26 @@ class BForceBase():
 
     def set_attack_class(self, attack_class):
         # Sets attack class to use when attacking
-        if issubclass(attack_class, self.base_attack_class):
-            self.attack_class = attack_class
+        if issubclass(attack_class, self._base_attack_type):
+            self._attack_class = attack_class
         else:
             # f-string arent supported on py35 or less
-            err_msg = "attack_classis not subclass of " +\
-                str(self.base_attack_class)
-            raise Exception(err_msg, attack_class)
+            err_msg = "attack_class should be sub-class of '{}' not '{}'"
+            err_msg = err_msg.format(
+                type(self._base_attack_type).__name__,
+                type(attack_class).__name__
+            )
+            raise TypeError(attack_class)
 
     def get_attack_class(self) -> Type[Attack]:
         # Returns attack class, raises error if not found
-        if hasattr(self, "attack_class"):
-            return self.attack_class
+        if self._attack_class is not None:
+            return self._attack_class
         else:
-            err_msg = "attack_class not found"
-            err_msg2 = "use set_attack_class() to set attack_class"
-            raise AttributeError(err_msg, err_msg2)
+            err_msg = "Attack class is not available(required)"
+            raise exceptions.MissingAttackType(err_msg)
 
-    def create_attack_object(self, data) -> Attack:
+    def _create_attack_object(self, data) -> Attack:
         # Creates attack object with set attack class
         # .get_attack_class() will raise error if not found
         attack_class = self.get_attack_class()
@@ -297,7 +304,7 @@ class BForceBase():
 
 
 
-    def get_current_producer_method(self):
+    def _get_current_producer_method(self):
         if self.should_optimise():
             producer_method = self._producer_loop_some
         else:
@@ -305,11 +312,11 @@ class BForceBase():
         return producer_method
 
     def get_producer_records(self) -> Iterable[forcetable.Record]:
-        return self.get_current_producer_method()()
+        return self._get_current_producer_method()()
 
 
 
-    def attack_success_callback(self, attack_object, record):
+    def _attack_success_callback(self, attack_object, record):
         # Method is called when there is succcess in one of records.
         # Record is appended to to success records.
         self._success_records.append(record)
@@ -333,13 +340,13 @@ class BForceBase():
         if self.is_primary_optimised():
             # Performs actions based on primary item and record
 
-            # Cancels producer/consumer when maximum primary items have
+            # Cancels producer/_consumer when maximum primary items have
             # been successfully bruteforced.
             # e.g when 4 usernames have been bruteforced successfully.
             if self._max_success_primary_items is not None:
                 primary_items = self._success_primary_items
                 if self._max_success_primary_items <= len(primary_items):
-                    self.cancel_consumer_producer()
+                    self._cancel_consumer_producer()
 
             # Excludes primary item and its record when maximum success
             # records have been reached.
@@ -351,72 +358,79 @@ class BForceBase():
         if self._optimise and not self._table.primary_field_exists():
             # Single field behaves like primary field.
             if self._max_success_records is None and len(self._fields)==1:
-                self.cancel_consumer_producer()
+                self._cancel_consumer_producer()
 
 
-        # Cancels consumer and producer on when max success records
+        # Cancels _consumer and producer on when max success records
         # is reached.
         if self._max_success_records is not None:
             # Not sure self._success_records will ever be larger
             # self._max_success_records.
             # Thats why '>=' was used as comparison operator.
             if len(self._success_records) >= self._max_success_records:
-                # Cancels producer and consumer
-                self.cancel_consumer_producer()
+                # Cancels producer and _consumer
+                self._cancel_consumer_producer()
 
-        # Cancels consumer and producer when _cancel_immediately is enabled.
+        # Cancels _consumer and producer when _cancel_immediately is enabled.
         if self._cancel_immediately:
-            self.cancel_consumer_producer()
+            self._cancel_consumer_producer()
+
+    def _before_start(self):
+        # Method called before starting bruteforce
+        self._start_callback()
+
+    def _after_start(self):
+        # Method called before starting bruteforce
+        self._done_callback()
 
 
-    def attack_failure_callback(self, attack_object, record):
+    def _attack_failure_callback(self, attack_object, record):
         # Callback called when theres failure without error after attack attempt
         pass
 
-    def attack_error_callback(self, attack_object:Attack, record):
+    def _attack_error_callback(self, attack_object:Attack, record):
         # Callback called when theres error after attack attempt'''
         pass
 
 
-    def handle_attack_results(self, attack_object:Type[Attack], record):
+    def _handle_attack_results(self, attack_object:Type[Attack], record):
         # Handles results of attack on attack object
         # start() was already called and finished
         # responce can be accessed with self._responce
         if attack_object.errors():
-            self.attack_error_callback(attack_object, record)
+            self._attack_error_callback(attack_object, record)
         elif attack_object.failure():
-            self.attack_failure_callback(attack_object, record)
+            self._attack_failure_callback(attack_object, record)
         elif attack_object.success():
-            self.attack_success_callback(attack_object, record)
+            self._attack_success_callback(attack_object, record)
         elif not attack_object.request_started():
             err_msg = "Request not started after starting request"
-            raise Exception(err_msg)
+            raise exceptions.UnexpectedError(err_msg)
         else:
             err_msg = "Something is wrong with attack results"
-            raise Exception(err_msg)          
+            raise exceptions.UnexpectedError(err_msg)          
             
 
 
-    def cancel_consumer_producer(self):
-        # Cancel both consumer and producer
-        self.cancel_producer()
-        self.cancel_consumer()
+    def _cancel_consumer_producer(self):
+        # Cancel both _consumer and producer
+        self._cancel_producer()
+        self._cancel_consumer()
 
     def cancel(self):
-        # Cancels producer, consumer and tasks to executed
-        self.cancel_consumer_producer()
-        self.cancel_current_tasks()
+        # Cancels producer, _consumer and tasks to executed
+        self._cancel_consumer_producer()
 
-    def task_done_callback(self, future: Future):
+    def _task_done_callback(self, future: Future):
         # Called when task completes
         pass
 
 
-    def consumer_done_callback(self):
-        # Called when consumer completed
+    def _consumer_done_callback(self):
+        # Called when _consumer completed
         self._consumer_completed = True
 
-    def producer_done_callback(self):
+    def _producer_done_callback(self):
         # Called when producer completed
         self._producer_completed = True
 
@@ -424,16 +438,16 @@ class BForceBase():
         # Returns True when attack is taking place
         return self._consumer_completed and self._producer_completed
 
-    def cancel_producer(self):
+    def _cancel_producer(self):
         # Requests producer to stop running
         self._producer_should_run = False
     
 
-    def cancel_consumer(self):
+    def _cancel_consumer(self):
         # Requests producer to stop running
         self._consumer_should_run = False
 
-    def consumer_should_continue(self):
+    def _consumer_should_continue(self):
         return self._consumer_should_run
 
     def producer_should_continue(self):
@@ -475,25 +489,25 @@ class BForceBase():
             if not self.producer_should_continue():
                 break
             yield record
-        self.producer_done_callback()
+        self._producer_done_callback()
 
 
-    def get_next_producer_record(self):
+    def _get_next_producer_record(self):
         # Returns next record from producer
-        while self.consumer_should_continue():
+        while self._consumer_should_continue():
             try:
                 return next(self._producer_records)
             except StopIteration:
                 # Out of records
                 break
-        # Producer completed, ran out of records or consumer completed.
+        # Producer completed, ran out of records or _consumer completed.
         return None
 
-    def get_next_producer_records(self, max_records:int):
+    def _get_next_producer_records(self, max_records:int):
         # Returns list of next producer records
         records = []
         for _ in range(max_records):
-            record = self.get_next_producer_record()
+            record = self._get_next_producer_record()
             if record != None:
                 records.append(record)
             else:
@@ -501,23 +515,23 @@ class BForceBase():
         return records
 
 
-    def handle_attack(self, record: Record):
+    def _handle_attack(self, record: Record):
         # Handles attack with provided record
         session = self.get_create_session() # get session for this thread
-        with self.create_attack_object(record) as attack_object:
+        with self._create_attack_object(record) as attack_object:
             if session != None:
                 # offer attack object session before request
                 # attack object should use the session during request
                 attack_object.set_session(session)
             # .start_until_retries() the request(can take some time)
             attack_object.start_until_retries(
-                self.consumer_should_continue
+                self._consumer_should_continue
             )
             # handles results of the request
-            self.handle_attack_results(attack_object, record)
+            self._handle_attack_results(attack_object, record)
 
 
-    def consumer(self):
+    def _consumer(self):
         # Consumes records in producer and initiate attack
         raise NotImplementedError
 
@@ -528,7 +542,7 @@ class BForceParallel(BForceBase):
     '''Base class for performing bruteforce attack in parallel'''
     def __init__(self, target, table: Table, optimise=False) -> None:
         super().__init__(target, table, optimise)
-        # Stores consumer tasks not yet completed
+        # Stores _consumer tasks not yet completed
         self._current_tasks: Set[Future] = set()
 
         # Total independed tasks to run in parallel
@@ -555,87 +569,88 @@ class BForceParallel(BForceBase):
         for task in self._current_tasks:
             task.cancel()
 
-    def task_done_callback(self, future: Future):
+    def cancel(self):
+        # Cancels producer, _consumer and tasks to executed
+        self._cancel_consumer_producer()
+        self.cancel_current_tasks()
+
+    def _task_done_callback(self, future: Future):
         # Called when task completes
         try:
-            future.result()
-        except Exception as e:
-            # Cancels producer and consumer and re-raise exception
-            # Cancelling current tasks would result in CancelError
-            # Its better to leave running tasks and let them finish.
-            if not hasattr(self, "exception_200"):
-                # Exception will only be raised by once
-                # only when self.exception_200 is not defied
-                setattr(self, "exception_200", True)
-                self.cancel_consumer_producer()
-                raise e
+            exception_ = future.exception()
+            if exception_ and not hasattr(self, "__exception__200"):
+                setattr(self, "__exception__200", True)
+                self.cancel()
+                raise exception_
+        except (asyncio.CancelledError, futures.CancelledError):
+            pass
 
-    def handle_attack_recursive(self, record):
+    def _handle_attack_recursive(self, record):
         # Performs attack recoursively on record and other records.
         # When attack completes on record, another attack is started.
         # This continues until producer runs out of records.
         # This was first implemented by BForceAsync.
-        self.handle_attack(record)
+        self._handle_attack(record)
         while True:
-            record = self.get_next_producer_record()
+            record = self._get_next_producer_record()
             if record != None:
                 # Perform attack again on the record
-                self.handle_attack(record)
+                self._handle_attack(record)
             else:
                 # Producer ran out of records
                 break
 
-    def to_future(self, __callable:Callable) -> Future:
+    def _to_future(self, __callable:Callable) -> Future:
         # Returns future like object from callable object
         raise NotImplementedError
 
-    def handle_attack_future(self, record) -> Future:
-        # Returns Future like object of self.handle_attack()
+    def _handle_attack_future(self, record) -> Future:
+        # Returns Future like object of self._handle_attack()
         def callback():
-            self.handle_attack(record)
-        return self.to_future(callback)
+            self._handle_attack(record)
+        return self._to_future(callback)
 
-    def handle_attack_recursive_future(self, record) -> Future:
-        # Returns Future like object of self.handle_attack_recursive()
+    def _handle_attack_recursive_future(self, record) -> Future:
+        # Returns Future like object of self._handle_attack_recursive()
         def callback():
-            self.handle_attack_recursive(record)
-        return self.to_future(callback)
+            self._handle_attack_recursive(record)
+        return self._to_future(callback)
 
-    def wait_tasks(self, tasks:List[Future]):
+    def _wait_tasks(self, tasks:List[Future]):
         # Waits for tasks to complete and then returns
         for task in tasks:
             task.result()
 
 
-    def consumer(self):
+    def _consumer(self):
         # Consumes items in records_queue
         tasks:Set[Future] = set()
         count = 0
         # The while loop can be replaced by Semaphore object
         while count < self._max_parallel_tasks:
-            record = self.get_next_producer_record()
+            record = self._get_next_producer_record()
             if record != None:
-                task = self.handle_attack_recursive_future(record)
+                task = self._handle_attack_recursive_future(record)
                 tasks.add(task)
                 self._current_tasks.add(task)
                 task.add_done_callback(self._current_tasks.discard)
-                task.add_done_callback(self.task_done_callback)
+                task.add_done_callback(self._task_done_callback)
             else:
                 break
             count += 1
         # wait for the executed tasks to complete
         # completion of one task is start of another task
         if tasks:
-            self.wait_tasks(tasks)
-        self.consumer_done_callback()
+            self._wait_tasks(tasks)
+        self._consumer_done_callback()
 
 
 
 
 class BForceExecutor(BForceParallel):
     '''Performs bruteforce concurrent attack using provided executor'''
-    base_attack_class = Attack
-    executor_class: Executor
+    _base_attack_type = Attack
+    _executor_type: Executor
 
     def __init__(self, target, table: Table, optimise=False) -> None:
         super().__init__(target, table, optimise)
@@ -651,32 +666,32 @@ class BForceExecutor(BForceParallel):
         # Returns pool executor e.g TheadPoolExecutor
         return self._executor
 
-    def create_default_executor(self) -> Executor:
+    def _create_default_executor(self) -> Executor:
         # Creates executor object
         raise NotImplementedError
 
-    def create_get_executor(self):
+    def _create_get_executor(self):
         # Gets executor or create one if not set
         if self._executor == None:
-            return self.create_default_executor()
+            return self._create_default_executor()
         else:
             return self._executor
 
-    def to_future(self, __callable: Callable) -> Future:
+    def _to_future(self, __callable: Callable) -> Future:
         return self._executor.submit(__callable)
 
     def start(self):
         '''Starts attack into system identified by target'''
-        self._start_callback()
+        self._before_start()
         self._executor_is_default = self._executor == None
-        self._executor = self.create_get_executor()
+        self._executor = self._create_get_executor()
         try:
-            self.consumer()
+            self._consumer()
         finally:
             if not self._executor_is_default:
                 self._executor.shutdown(True)
             self.close_session()
-        self._done_callback()
+        self._after_start()
 
 
 class BForceThread(BForceExecutor):
@@ -701,12 +716,12 @@ class BForceThread(BForceExecutor):
         return None
         
 
-    def create_default_executor(self) -> Executor:
+    def _create_default_executor(self) -> Executor:
         return ThreadPoolExecutor(self._max_workers)
 
-    def get_next_producer_record(self):
+    def _get_next_producer_record(self):
         with self._lock:
-            return super().get_next_producer_record()
+            return super()._get_next_producer_record()
 
 
 # class BForceProcess(BForceExecutor):
@@ -732,23 +747,23 @@ class BForceThread(BForceExecutor):
 #             return globals()["_session"]
 #         return None
 
-#     def create_default_executor(self) -> Executor:
+#     def _create_default_executor(self) -> Executor:
 #         # Creates process executor to execute tasks.
 #         # Initialize was not set as get_create_executor handles
 #         # everything about setting and creating executor.
 #         return ProcessPoolExecutor(self._max_workers)
 
-#     def get_next_producer_record(self):
+#     def _get_next_producer_record(self):
 #         with self._lock:
-#             # get_next_producer_record() modifies some attributes.
+#             # _get_next_producer_record() modifies some attributes.
 #             # It needs to be under a lock(avoid data races)
-#             return super().get_next_producer_record()
+#             return super()._get_next_producer_record()
 
 
 
 class BForceAsync(BForceParallel):
     '''Performs attack on target with data from Ftable object(asyncio)'''
-    base_attack_class = AttackAsync 
+    _base_attack_type = AttackAsync 
 
     def __init__(self, target, table, optimise=False):
         super().__init__(target, table, optimise)
@@ -800,7 +815,7 @@ class BForceAsync(BForceParallel):
     # End: session methods
 
 
-    async def handle_attack_results(
+    async def _handle_attack_results(
         self, 
         attack_object: AttackAsync, 
         record: Record):
@@ -808,63 +823,66 @@ class BForceAsync(BForceParallel):
         # start() was already called and finished
         # responce can be accessed with self._responce
         if await attack_object.errors():
-            self.attack_error_callback(attack_object, record)
+            self._attack_error_callback(attack_object, record)
         elif await attack_object.failure():
-            self.attack_failure_callback(attack_object, record)
+            self._attack_failure_callback(attack_object, record)
         elif await attack_object.success():
-            self.attack_success_callback(attack_object, record)
+            self._attack_success_callback(attack_object, record)
         elif not attack_object.request_started():
             err_msg = "Request not started after starting request"
-            raise Exception(err_msg)
+            raise exceptions.UnexpectedError(err_msg)
         else:
             err_msg = "Something is wrong with attack results"
-            raise Exception(err_msg)
+            raise exceptions.UnexpectedError(err_msg)
 
-    async def handle_attack(self, record: Record):
-        #print("run async def handle_attack()")
+    async def _handle_attack(self, record: Record):
+        #print("run async def _handle_attack()")
         # Handles attack on attack class with asyncio support
         session = await self.get_create_session()
-        async with self.create_attack_object(record) as attack_object:
-            #print("after self.create_attack_object()")
+        async with self._create_attack_object(record) as attack_object:
+            #print("after self._create_attack_object()")
             if session != None:
                 # this line can speed request performance
                 attack_object.set_session(session)
             # .start_until_retries() needs to be coroutine method
             await attack_object.start(
-                self.consumer_should_continue
+                self._consumer_should_continue
             )
-            await self.handle_attack_results(attack_object, record)
+            await self._handle_attack_results(attack_object, record)
 
 
-    async def handle_attack_recursive(self, record:Record):
-        await self.handle_attack(record)
+    async def _handle_attack_recursive(self, record:Record):
+        await self._handle_attack(record)
         while True:
-            record = self.get_next_producer_record()
+            record = self._get_next_producer_record()
             if record != None:
                 # Perform attack again on the record
-                await self.handle_attack(record)
+                await self._handle_attack(record)
             else:
                 # Stop performing any other tasks
                 break
 
-    def to_future(self, __callable:Callable) -> Future:
+    def _to_future(self, __callable:Callable) -> Future:
         # Returns Task object from coroutine callable
         awaitable =  __callable() # should be awaitable
         return asyncio.ensure_future(awaitable)
 
-    def handle_attack_recursive_future(
+    def _handle_attack_recursive_future(
         self, 
         record:Record) -> asyncio.Task:
-        # Returns Task object from self.handle_attack_recursive()
-        async def callback():
-            await self.handle_attack_recursive(record)
-        return self.to_future(callback)
+        # Returns Task object from self._handle_attack_recursive()
+        async def handle_attack_recursive():
+            try: 
+                await self._handle_attack_recursive(record)
+            except asyncio.CancelledError:
+                pass
+        return self._to_future(handle_attack_recursive)
 
-    async def wait_tasks(self, tasks:List[asyncio.Task]):
+    async def _wait_tasks(self, tasks:List[asyncio.Task]):
         # Waits for tasks to complete and then returns
         await asyncio.gather(*tasks, return_exceptions=False)
 
-    async def consumer(self):
+    async def _consumer(self):
         # Consumes records in records producer
         tasks:Set[Future] = set()
         count = 0
@@ -878,29 +896,29 @@ class BForceAsync(BForceParallel):
         max_parallel_tasks = min(max_workers, self._max_parallel_tasks)
         # The while loop can be replaced by Semaphore object
         while count < max_parallel_tasks:
-            record = self.get_next_producer_record()
+            record = self._get_next_producer_record()
             if record != None:
-                task = self.handle_attack_recursive_future(record)
+                task = self._handle_attack_recursive_future(record)
                 tasks.add(task)
                 self._current_tasks.add(task)
-                task.add_done_callback(self.task_done_callback)
+                task.add_done_callback(self._task_done_callback)
             else:
                 break
             count += 1
         # wait for the executed tasks to complete
         # completion of one task is start of another task
         if tasks:
-            await self.wait_tasks(tasks)
-        self.consumer_done_callback()
+            await self._wait_tasks(tasks)
+        self._consumer_done_callback()
 
 
     async def start(self):
-        self._start_callback()
+        self._before_start()
         try:
-            await self.consumer()
+            await self._consumer()            
         finally:
             await self.close_session()
-        self._done_callback()
+        self._after_start()
 
 
 
@@ -924,21 +942,21 @@ class BForceBlock(BForceBase):
             return self._session
         return None
 
-    def consumer(self):
+    def _consumer(self):
         for record in self._producer_records:
-            if self.consumer_should_continue():
-                self.handle_attack(record)
+            if self._consumer_should_continue():
+                self._handle_attack(record)
             else:
                 break
-        self.consumer_done_callback()
+        self._consumer_done_callback()
 
     def start(self):
-        self._start_callback()
+        self._before_start()
         try:
-            self.consumer()
+            self._consumer()
         finally:
             self.close_session()
-        self._done_callback()
+        self._after_start()
 
 
 class BForce(BForceThread):

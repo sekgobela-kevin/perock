@@ -9,18 +9,21 @@ Languages: Python 3
 import asyncio
 import time 
 import typing
+import inspect
 
-from .attempt import Attempt
-from .attempt import AttemptAsync
+from . attempt import Attempt
+from . attempt import AttemptAsync
 
-from .check import Check
-from .check import CheckAsync
+from . check import Check
+from . check import CheckAsync
 
-from .responce import ResponceBytesAnalyser
+from . responce import ResponceBytesAnalyser
+
+from perock import exceptions 
 
 
-class Attack(Attempt, Check):
-    '''Attempts to logs into system with data'''
+class BaseAttack():
+    '''Base class for attempting to log to target with data'''
     base_attempt_class = Attempt
     base_check_class = Check
 
@@ -46,124 +49,137 @@ class Attack(Attempt, Check):
     def set_retries_sleep_time(self, seconds):
         self._retry_sleep_time = seconds
 
-    def _validate_attack(self):
-        target_reached = self.target_reached()
-        request_failed = self.request_failed()
-        request_started = self.request_started()
+    @classmethod
+    def _static_validate_response_results(
+        cls,
+        response,
+        target_reached,
+        request_failed,
+        request_started,
+        
+        target_errors,
+        client_errors,
+        errors,
 
-        target_errors = self.target_errors()
-        client_errors = self.client_errors()
-        errors = self.errors()
-
-        failure = self.failure()
-        success = self.success()
-
+        failure,
+        success
+        ):
+        # Validates response results(raises exceptions)
         main_results = [errors, success, failure]
 
         if not request_started:
             if target_reached:
                 err_msg = "Target cant be reached while request " +\
                     "was not started"
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
             if request_failed:
                 err_msg = "Request cant fail if request was not started"
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
             if any(main_results):
                 err_msg = "errors, success or failure not expected if "
                 "request was not started"
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
 
         if request_failed:
-            if not isinstance(self._responce, Exception):
-                err_msg = "Responce should be exception if request failed"
-                raise Exception(err_msg, type(self._responce))
             if not client_errors:
                 err_msg = "Client error expected if request failed"
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
             if target_errors:
                 err_msg = "Target error not allowed if request failed"
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
 
         if target_reached:
             if request_failed:
                 err_msg = "Request cant fail if target was reached"
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
             if client_errors:
                 err_msg = "Client error not expected if target was reached"
-                raise Exception(err_msg)
-            if len(list(filter(None, main_results))) != 1:
-                true_filtered = list(filter(None, main_results))
-                if len(true_filtered) == 0:
-                    err_msg = "'success', 'failure' or 'errors' expected " +\
-                    "if target was reached"
-                else:
-                    err_msg = "Only 1 between 'success', 'failure' " +\
-                    "and 'errors' is expected if target was reached, " +\
-                    "not " + str(len(true_filtered))
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
+            if not (success or failure or target_errors):
+                err_msg = "'success', 'failure' or 'target error' expected " +\
+                "if target was reached"
+                raise exceptions.UnexpectedResponseError(err_msg)
 
         if not target_reached:
             if target_errors:
                 err_msg = "Target error not expected if target " +\
                     "was not reached"
-                raise Exception(err_msg)
-            if success and failure:
-                err_msg = "success or failure not expected if target " +\
+                raise exceptions.UnexpectedResponseError(err_msg)
+            if success:
+                err_msg = "success not expected if target " +\
                     "was not reached"
-                raise Exception(err_msg)
+                raise exceptions.UnexpectedResponseError(err_msg)
+            if failure:
+                err_msg = "failure not expected if target " +\
+                    "was not reached"
+                raise exceptions.UnexpectedResponseError(err_msg)
                     
 
         if errors and not (client_errors or target_errors):
-            err_msg = "Errors encounted but no client or target errors"
-            raise Exception(err_msg)
+            err_msg = "Error encounted but no client or target errors"
+            raise exceptions.UnexpectedResponseError(err_msg)
 
         if success and failure:
             err_msg = "success and failure cant happen at the same time"
-            raise Exception(err_msg)
+            raise exceptions.UnexpectedResponseError(err_msg)
 
         if errors and (success or failure):
             err_msg = "Error not expected if theres success or failure"
-            raise Exception(err_msg)
+            raise exceptions.UnexpectedResponseError(err_msg)
 
-    def _update_responce_message(self):        
-        if self.target_reached():
-            self._responce_msg = "Target was reached"
-            if self.target_errors():
-                self._responce_msg = "Target experienced errors"
-            elif self.failure():
-                self._responce_msg = "Failed to crack target(failure)"
-            elif self.success():
-                self._responce_msg = "Target was cracked(success)"
+        if not (errors or success or failure):
+            err_msg = "Error, success or failure is expected"
+            raise exceptions.UnexpectedResponseError(err_msg)
+
+    @classmethod
+    def _static_update_responce_message(        
+        cls,
+        response,
+        target_reached,
+        request_failed,
+        request_started,
+        
+        target_errors,
+        client_errors,
+        errors,
+
+        failure,
+        success):   
+        '''Updates response message based on arguments'''     
+        if target_reached:
+            responce_msg = "Target was reached"
+            if target_errors:
+                responce_msg = "Target experienced errors"
+            elif failure:
+                responce_msg = "Failed to crack target(failure)"
+            elif success:
+                responce_msg = "Target was cracked(success)"
             else:
-                self._responce_msg = "Target reached but confused"
+                responce_msg = "Target reached but confused"
         else:
-            if not self.request_started():
-                self._responce_msg = "Request was not started"
-            elif self.request_failed():
+            responce_msg = "Target was not reached"
+            if not request_started:
+                responce_msg = "Request was not started"
+            elif request_failed:
                 # Request failed, responce should be exception.
-                self._responce_msg = str(self._responce)
-            elif self.client_errors():
-                self._responce_msg = "Client experienced errors"
+                responce_msg = str(response)
+            elif client_errors:
+                responce_msg = "Client experienced errors"
             else:
-                self._responce_msg = "Target not reached for unknown reasons"
+                responce_msg = "Target not reached for unknown reasons"
+        return responce_msg
 
-    def isconfused(self):
-        # Returns True the object is aware of state of responce
-        results = any([
-            self.errors(),
-            self.failure(),
-            self.success()
-        ])
-        return not results
+    @classmethod
+    def static_isconfused(cls, error, failure, success):
+        # Atleast success, error or failure is expected
+        total_true = len(list(filter(None, [error, failure, success])))
+        return total_true != 1
 
-    def confused_action(self):
+    @classmethod
+    def static_confused_action(self, data, target_reached, error, failure, success):
         # Method called if theres is confusion
-        target_reached = self.target_reached()
-        errors = self.errors()
-        failure = self.failure()
-        success = self.success()
         err_msg = '''
-        Not sure if attack failed or was success(confused)
+        Something is wrong with response
 
         Record/Data: {data}
         Target Reached: {target_reached}
@@ -172,14 +188,93 @@ class Attack(Attempt, Check):
         Success: {success}
         '''
         err_msg = err_msg.format(
-            data=self._data,
+            data=data,
             target_reached=target_reached,
-            errors=errors,
+            errors=error,
             failure=failure,
             success=success,
         )
-        raise Exception(err_msg)    
+        raise exceptions.UnexpectedError(err_msg)   
 
+    def create_results_map(self):
+        '''Creates map with results from response'''
+        return {
+            "target_reached": self.target_reached(),
+            "request_failed": self.request_failed(),
+            "request_started": self.request_started(),
+
+            "target_error": self.target_errors(),
+            "client_error": self.client_errors(),
+            "error": self.errors(),
+
+            "failure": self.failure(),
+            "success": self.success()
+        }
+
+    def _after_attack_checks(self, results_map):
+        target_reached = results_map["target_reached"]
+        request_failed = results_map["request_failed"]
+        request_started = results_map["request_started"]
+
+        target_errors = results_map["target_error"]
+        client_errors = results_map["client_error"]
+        errors = results_map["error"]
+
+        failure = results_map["failure"]
+        success = results_map["success"]
+        if self._should_validate_attack:
+            self._static_validate_response_results(
+                response= self._responce,
+                target_reached = target_reached,
+                request_failed = request_failed,
+                request_started = request_started,
+
+                target_errors = target_errors,
+                client_errors = client_errors,
+                errors = errors,
+
+                failure = failure,
+                success = success)
+        
+        if self._should_update_responce_message:
+            self._responce_msg = self._static_update_responce_message(
+                response= self._responce,
+                target_reached = target_reached,
+                request_failed = request_failed,
+                request_started = request_started,
+
+                target_errors = target_errors,
+                client_errors = client_errors,
+                errors = errors,
+
+                failure = failure,
+                success = success)  
+
+
+        if self.static_isconfused(errors, failure, success):
+            self.static_confused_action(
+                data=self._data,
+                target_reached=target_reached, 
+                error=errors, 
+                failure=failure, 
+                success=success
+            )
+
+
+class Attack(BaseAttack, Attempt, Check):
+    '''Single attempt to logs into system with data'''
+    base_attempt_class = Attempt
+    base_check_class = Check
+
+    def is_confused(self):
+        '''Checks if respose results are unexpected'''
+        results_map = self.create_results_map()
+        return self.static_isconfused(
+                error=results_map["error"], 
+                failure=results_map["failure"], 
+                success=results_map["success"]
+            )
+    
     def start_until_target_reached(
         self,
         should_continue_callaback = lambda : True):
@@ -211,17 +306,14 @@ class Attack(Attempt, Check):
                 break
             time.sleep(self._retry_sleep_time)
 
-    def after_request(self):
+    def _after_request(self):
         # Called after start() completes
-        super().after_request()
-        if self._should_validate_attack:
-            self._validate_attack()
-        if self._should_update_responce_message:
-            self._update_responce_message()
+        super()._after_request()
+        self._after_attack_checks(self.create_results_map())
 
 
 
-class AttackAsync(AttemptAsync, CheckAsync):
+class AttackAsync(BaseAttack, AttemptAsync, CheckAsync):
     '''Perform attack using request implemeted with asyncio'''
     base_attempt_class = AttemptAsync
     base_check_class = CheckAsync
@@ -235,154 +327,6 @@ class AttackAsync(AttemptAsync, CheckAsync):
 
         self._should_validate_attack = True
         self._should_update_responce_message = True
-
-    def set_retries(self, retries):
-        self._retries = retries
-
-    def set_retries_sleep_time(self, seconds):
-        self._retry_sleep_time = seconds
-
-    async def _validate_attack(self):
-        target_reached = await self.target_reached()
-        request_failed = self.request_failed()
-        request_started = self.request_started()
-
-        target_errors = await self.target_errors()
-        client_errors = await self.client_errors()
-        errors = await self.errors()
-
-        failure = await self.failure()
-        success = await self.success()
-
-        main_results = [errors, success, failure]
-
-        if not request_started:
-            if target_reached:
-                err_msg = "Target cant be reached while request was not started"
-                raise Exception(err_msg)
-            if request_failed:
-                err_msg = "Request cant fail if request was not started"
-                raise Exception(err_msg)
-            if any(main_results):
-                err_msg = "errors, success or failure not expected if "
-                "request was not started"
-                raise Exception(err_msg)
-
-        if request_failed:
-            if not isinstance(self._responce, Exception):
-                err_msg = "Responce should be exception if request failed"
-                raise Exception(err_msg, type(self._responce))
-            if not client_errors:
-                err_msg = "Client error expected if request failed"
-                raise Exception(err_msg)
-            if target_errors:
-                err_msg = "Target error not expected if request failed"
-                raise Exception(err_msg)
-
-        if target_reached:
-            if request_failed:
-                err_msg = "Request cant fail if target was reached"
-                raise Exception(err_msg)
-            if client_errors:
-                err_msg = "Client error not expected if target was reached"
-                raise Exception(err_msg)
-            if len(list(filter(None, main_results))) != 1:
-                true_filtered = list(filter(None, main_results))
-                if len(true_filtered) == 0:
-                    err_msg = "'success', 'failure' or 'errors' expected " +\
-                    "if target was reached"
-                else:
-                    err_msg = "Only 1 between 'success', 'failure' " +\
-                    "and 'errors' is expected if target was reached, " +\
-                    "not " + str(len(true_filtered))
-                raise Exception(err_msg)
-
-        if not target_reached:
-            if target_errors:
-                err_msg = "Target error not expected if target was not reached"
-                raise Exception(err_msg)
-            if success or failure:
-                err_msg = "success or failure not expected if target " +\
-                "was not reached"
-                raise Exception(err_msg)
-                    
-
-        if errors and not (client_errors or target_errors):
-            err_msg = "Errors encounted but no client or target errors"
-            raise Exception(err_msg)
-
-        if success and failure:
-            err_msg = "success and failure cant happen at the same time"
-            raise Exception(err_msg)
-
-        if errors and (success or failure):
-            err_msg = "Error not expected if theres success or failure"
-            raise Exception(err_msg)
-
-
-    async def _update_responce_message(self):     
-        target_reached = await self.target_reached()
-        request_failed = self.request_failed()
-        request_started = self.request_started()
-
-        target_errors = await self.target_errors()
-        client_errors = await self.client_errors()
-
-        failure = await self.failure()
-        success = await self.success()
-   
-        if target_reached:
-            if target_errors:
-                self._responce_msg = "Target experienced errors"
-            elif failure:
-                self._responce_msg = "Failed to crack target(failure)"
-            elif success:
-                self._responce_msg = "Target was cracked(success)"
-            else:
-                self._responce_msg = "Target reached but confused"
-        else:
-            if not request_started:
-                self._responce_msg = "Request was not started"
-            elif request_failed:
-                # Request failed, responce should be exception.
-                self._responce_msg = str(self._responce)
-            elif client_errors:
-                self._responce_msg = "Client experienced errors"
-            else:
-                self._responce_msg = "Target not reached for unknown reasons"
-
-
-    async def isconfused(self):
-        # Returns True the object is aware of state of responce
-        results = any([
-            await self.errors(),
-            await self.failure(),
-            await self.success()
-        ])
-        return not results
-
-    async def confused_action(self):
-        target_reached = await self.target_reached()
-        errors = await self.errors()
-        failure = await self.failure()
-        success = await self.success()
-        err_msg = '''
-        Not sure if attack failed or was success(confused)
-
-        Record/Data: {data}
-        Target Reached: {target_reached}
-        Errors: {errors}
-        Failed: {failure}
-        Success: {success}
-        '''
-        err_msg = err_msg.format(
-            data=self._data,
-            target_reached=target_reached,
-            errors=errors,
-            failure=failure,
-            success=success,
-        )
-        raise Exception(err_msg)   
 
 
     async def start_until_target_reached(
@@ -414,135 +358,29 @@ class AttackAsync(AttemptAsync, CheckAsync):
                 break
             await asyncio.sleep(self._retry_sleep_time)
 
+    async def create_results_map(self):
+        results_map = super().create_results_map()
+        for name, method in results_map.items():
+            if inspect.iscoroutine(method):
+                value = await method
+            else:
+                value = method
+            results_map[name] = value
+        return results_map
 
-    async def after_request(self):
+
+    async def is_confused(self):
+        '''Checks if respose results are unexpected'''
+        results_map = await self.create_results_map()
+        return self.static_isconfused(
+                error=results_map["error"], 
+                failure=results_map["failure"], 
+                success=results_map["success"]
+            )
+
+    async def _after_request(self):
         # Called after start() completes
-        await super().after_request()
-        if self._should_validate_attack:
-            await self._validate_attack()
-        if self._should_update_responce_message:
-            await self._update_responce_message()
-
-
-
-# -----------------------------------------------
-# Attack Text classes begin here
-# -----------------------------------------------
-
-
-class AttackResponceBytesAnalyser():
-    #ResponceBytesAnalyser class for attack text classes including 
-    # AttackBytesAsync'''
-
-    # This class is meant to be used temporary until ResponceBytesAnalyser
-    # class is used fully.
-    # It only strips away unwanted functionality from ResponceBytesAnalyser
-    # The functionalities are just not needed currently.
-
-    # Sorry, I cant write unit-tests for this class.
-    # ResponceBytesAnalyser already has tests that already tests everything.
-    def __init__(self, bytes_string, contains_strict=False) -> None:
-        self._responce_analyser = ResponceBytesAnalyser(
-            bytes_string, 
-            contains_strict
-        )
-
-    def set_target_reached_bytes_strings(self, bytes_strings):
-        self._responce_analyser.set_target_reached_bytes_strings(bytes_strings)
-
-    def set_target_errors_bytes_strings(self, bytes_strings):
-        self._responce_analyser.set_target_error_bytes_strings(bytes_strings)
-
-    def set_client_errors_bytes_strings(self, bytes_strings):
-        self._responce_analyser.set_client_error_bytes_strings(bytes_strings)
-
-    def set_errors_bytes_strings(self, bytes_strings):
-        self._responce_analyser.set_error_bytes_strings(bytes_strings)
-
-    def set_success_bytes_strings(self, bytes_strings):
-        self._responce_analyser.set_success_bytes_strings(bytes_strings)
-
-    def set_failure_bytes_strings(self, bytes_strings):
-        self._responce_analyser.set_failure_bytes_strings(bytes_strings)
-
-
-class AttackBytes(Attack, AttackResponceBytesAnalyser):
-    '''Attack class with responce containing bytes or text'''
-    def __init__(self, target, data: dict, retries=1) -> None:
-        super().__init__(target, data, retries)
-        AttackResponceBytesAnalyser.__init__(self, b"")
-
-    def responce_content(self) -> str:
-        '''Returns string or bytes from responce'''
-        raise NotImplementedError
-
-    def target_reached(self):
-        if super().target_reached():
-            return True
-        return self._responce_analyser.target_reached()
-
-    def success(self) -> bool:
-        return self._responce_analyser.success()
-
-    def failure(self) -> bool:
-        return self._responce_analyser.failure()
-
-    def target_errors(self) -> bool:
-        return self._responce_analyser.target_error()
-
-    def client_errors(self) -> bool:
-        if super().client_errors():
-            return True
-        return self._responce_analyser.target_error()
-
-    def errors(self) -> bool:
-        if super().errors():
-            return True
-        return self._responce_analyser.error()       
-
-    def after_request(self):
-        # Careful of when to call super().after_request()
-        bytes_string = self.responce_content()
-        self._responce_analyser.update(bytes_string)
-        super().after_request()
-
-
-class AttackBytesAsync(AttackAsync,  AttackResponceBytesAnalyser):
-    '''Attack class with responce containing bytes or text'''
-    def __init__(self, target, data: dict, retries=1) -> None:
-        super().__init__(target, data, retries)
-        AttackResponceBytesAnalyser.__init__(self, b"")
-
-    async def responce_content(self) -> str:
-        '''Returns string or bytes from responce'''
-        raise NotImplementedError
-
-    async def target_reached(self):
-        if await super().target_reached():
-            return True
-        return self._responce_analyser.target_reached()
-
-    async def success(self) -> bool:
-        return self._responce_analyser.success()
-
-    async def failure(self) -> bool:
-        return self._responce_analyser.failure()
-
-    async def target_errors(self) -> bool:
-        return self._responce_analyser.target_error()
-
-    async def client_errors(self) -> bool:
-        if await super().client_errors():
-            return True
-        return self._responce_analyser.target_error()
-
-    async def errors(self) -> bool:
-        if await super().errors():
-            return True
-        return self._responce_analyser.error()   
-
-    async def after_request(self):
-        # Careful of when to call super().after_request()
-        bytes_string = await self.responce_content()
-        self._responce_analyser.update(bytes_string)
-        await super().after_request()
+        await super()._after_request()
+        results_map = await self.create_results_map()
+        self._after_attack_checks(results_map)
+        

@@ -33,18 +33,23 @@ class RunnerBase():
     target: typing.Any,
     table: forcetable.Table,
     optimise = False) -> None:
-        self._runner_start_time = 0
-        self._runner_end_time = 0
+        self._runner_start_time = 0.0
+        self._runner_end_time = 0.0
+        self._started = False
+        self._completed = False
         self._bforce = self._bforce_type(target, table, optimise)
         self._bforce.set_attack_class(attack_class)
 
-    def _update_runner_start_time(self):
+    def _before_start(self):
         # Updates start time of runner
         self._runner_start_time = time.time()
+        self._started = True
+        self._completed = False
 
-    def _update_runner_end_time(self):
+    def _after_start(self):
         # Updates start time of runner
         self._runner_end_time = time.time()
+        self._completed = True
 
     def set_start_callback(self, callback):
         '''Sets function to be called at start of bruteforce session'''
@@ -153,24 +158,24 @@ class RunnerBase():
 
     def is_running(self):
         '''Checks if runner is currently running'''
-        return self._bforce.running()
+        return self._started and not self._completed
 
     def started(self):
         '''Checks if runner if runner was ever started running'''
-        return self._runner_start_time > 0 or self.is_running()
+        return self._started
 
     def completed(self):
         '''Checks if runner if runner completed running'''
-        return self.started() and not self.is_running()
+        return self._completed
 
     def stop(self):
         '''Stops runner and terminate any pending records.'''
         self._bforce.cancel()
 
     def start(self):
-        self._update_runner_start_time()
+        self._before_start()
         self._bforce.start()
-        self._update_runner_end_time()
+        self._after_start()
 
     def run(self):
         '''Entry point to starting attack on target'''
@@ -228,9 +233,9 @@ class RunnerAsync(RunnerParallel):
     _bforce_type = bforce.BForceAsync
 
     async def start(self):
-        self._update_runner_start_time()
+        self._before_start()
         await self._bforce.start()
-        self._update_runner_end_time()
+        self._after_start()
 
     async def run(self):
         await self.start()

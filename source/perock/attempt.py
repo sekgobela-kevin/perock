@@ -7,6 +7,7 @@ Languages: Python 3
 from typing import List, Set
 
 from . import util
+from . import exceptions
 
 
 class Attempt():
@@ -54,23 +55,14 @@ class Attempt():
     @classmethod
     def _should_raise_exception(cls, exception):
         # Returns True if exception should be raised on .request(self)
-        if isinstance(exception, BaseException):
+        if isinstance(exception, Exception):
             for unraised_exception in cls.unraised_exceptions_classes:
                 if isinstance(exception, unraised_exception):
                     return False
             return True
         else:
-            err_msg = "exception needs to be BaseException not" +\
-            " " + str(type(exception))
-            raise TypeError(err_msg)
-
-    def validate_data(self, data):
-        '''Checks if data is in valid for request'''
-        # if not isinstance(data, dict):
-        #     #err_msg = "data needs to be in dictionary form"
-        #     #raise TypeError(err_msg)
-        #     return False
-        return True
+            err_msg = "Type '{}' is not subclass of 'Exception'"
+            raise TypeError(err_msg .format(type(exception).__name__))
 
     @classmethod
     def create_session(cls, *args, **kwargs):
@@ -103,18 +95,20 @@ class Attempt():
         err_msg = "request() method not implemented"
         raise NotImplementedError(err_msg)
 
+    def _before_request(self): 
+        self.before_request()
+
+    def _after_request(self):
+        self.after_request()
+
     def before_request(self):
-        # Called im,edeiately when start() is called
-        if not self.validate_data(self._data):
-            err_msg = "Data({}) is not valid".format(self.data)
-            err_msg2 = "check if the data is in right format"
-            raise ValueError(err_msg, err_msg2)
+        pass
 
     def after_request(self):
-        # Called after start() completes
         pass
 
     def _start(self):
+        self._before_request()
         try:
             self._responce =  self.request()
         except Exception as e:
@@ -123,30 +117,31 @@ class Attempt():
             else:
                 self._responce = e
                 self._responce_msg = str(e)
-        if self._responce == None:
-            err_msg = "responce cant be None"
-            raise Exception(err_msg)
+        if self._responce is None:
+            err_msg = "responce cant be of type 'NoneType'"
+            raise exceptions.UnexpectedResponseError(err_msg)
+        self._after_request()
+        
 
     def start(self, retries=1):
         '''Start a request and update internal attributes based on
         returned responce'''
-        self.before_request()
         self._start()
-        self.after_request()
+        
 
     @classmethod
     def close_session(cls, session):
         '''Closes session object'''
-        util.try_close(session)
+        pass
 
     @classmethod
     def close_responce(cls, response):
         "Closes responce object"
-        if response is not None:
-            util.try_close(response)
+        pass
 
     def close(self):
-        self.close_responce(self._responce)
+        if self.session_exists():
+            self.close_responce(self._responce)
 
     def __enter__(self):
         return self
@@ -170,13 +165,17 @@ class AttemptAsync(Attempt):
     @classmethod
     async def close_session(cls, session):
         '''Closes session object'''
-        if session is not None:
-            await util.async_try_close(session)
+        pass
 
     async def close_responce(cls, response):
         "Closes responce object"
-        if response is not None:
-            await util.async_try_close(response)
+        pass
+
+    async def _before_request(self): 
+        await self.before_request()
+
+    async def _after_request(self):
+        await self.after_request()
 
     async def before_request(self):
         super().before_request()
@@ -191,6 +190,7 @@ class AttemptAsync(Attempt):
         raise NotImplementedError(err_msg)
 
     async def _start(self):
+        await self._before_request()
         try:
             self._responce =  await self.request()
         except Exception as e:
@@ -199,20 +199,20 @@ class AttemptAsync(Attempt):
             else:
                 self._responce = e
                 self._responce_msg = str(e)
-        if self._responce == None:
-            err_msg = "responce cant be None"
-            raise Exception(err_msg)
+        if self._responce is None:
+            err_msg = "responce cant be of type 'NoneType'"
+            raise exceptions.UnexpectedResponseError(err_msg)
+        await self._after_request()
 
 
     async def start(self, retries=1):
         '''Start a request and update internal attributes based on
         returned responce'''
-        await self.before_request()
         await self._start()
-        await self.after_request()
 
     async def close(self):
-        await self.close_responce(self._responce)
+        if self.session_exists():
+            await self.close_responce(self._responce)
 
     async def __aenter__(self):
         return self
