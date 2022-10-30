@@ -1,7 +1,6 @@
 requests
 aiohttp
-meinheld
 aiounittest
 prodius
-forcetable>=0.0.4 
+forcetable>=0.0.4, <0.1.0
 tox
