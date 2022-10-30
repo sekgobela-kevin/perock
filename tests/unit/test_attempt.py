@@ -27,6 +27,14 @@ class SampleAttempt(Attempt):
     def set_responce(self, responce):
         self._responce = responce
 
+    @classmethod
+    def close_session(cls, session):
+        session.close()
+
+    @classmethod
+    def close_responce(cls, session):
+        session.close()
+
 
 class SampleAttemptAsync(AttemptAsync):
     def __init__(self, target, data: dict, retries=1) -> None:
@@ -43,6 +51,14 @@ class SampleAttemptAsync(AttemptAsync):
 
     def set_responce(self, responce):
         self._responce = responce
+
+    @classmethod
+    async def close_session(cls, session):
+        session.close()
+
+    @classmethod
+    async def close_responce(cls, session):
+        session.close()
 
 
 class TestAttemptSetUp():
@@ -81,11 +97,6 @@ class TestAttemptSetUpAsync(TestAttemptSetUp):
 
 
 class TestAttemptCommon(TestAttemptSetUp):
-    def test_validate_data(self):
-        self.assertTrue(self.attempt.validate_data(self._data))
-        self.assertTrue(self.attempt.validate_data(self.data3))
-
-
     def test_create_session(self):
         with self.assertRaises(NotImplementedError):
             self.attempt.create_session()
@@ -135,12 +146,10 @@ class TestAttemptCommon(TestAttemptSetUp):
     def before_request(self):
         # Harder to test
         self.attempt.after_request()
-        pass
 
     def test_after_request(self):
         # Harder to test
         self.attempt.after_request()
-        pass
 
     def test_start(self):
         self.attempt.start()
@@ -189,7 +198,7 @@ class TestAttemptAsyncCommon(TestAttemptSetUpAsync, TestAttemptCommon):
         await self.attempt.after_request()
 
     async def test_request(self):
-        # Gets responce messages fro responce objects
+        # Gets responce messages from responce objects
         responce = await self.attempt.request()
         responce_msg = responce.get_message()
         responce2 = self._target.login(self.account)

@@ -9,7 +9,7 @@ from .test_check import TestCheckAsyncCommon
 
 from perock.target import Responce, Target
 from perock.target import Account
-from perock.attack import Attack, AttackAsync, AttackBytes, AttackBytesAsync
+from perock.attack import Attack, AttackAsync
 
 
 class SampleAttack(Attack):
@@ -41,37 +41,13 @@ class SampleAttack(Attack):
     def set_responce(self, responce):
         self._responce = responce
 
+    @classmethod
+    def close_session(cls, session):
+        session.close()
 
-class SampleAttackBytes(AttackBytes):
-    def __init__(self, target, data: dict, retries=1) -> None:
-        super().__init__(target, data, retries)
-        self._target: Target
-        self._responce: Responce
-        self.request_should_fail = False
-
-        self.set_success_bytes_strings(["unlocked"])
-        self.set_failure_bytes_strings([
-            "Failed to log", "account info"
-        ])
-        self.set_target_errors_bytes_strings([
-            "Our system", "was denied", "errors"
-        ])
-
-    def responce_content(self) -> str:
-        if self.target_reached():
-            return self._responce.get_message()
-        else:
-            return str(self._responce)
-    
-    def request(self):
-        if not self.request_should_fail:
-            account = Account(self._data)
-            return self._target.login(account)
-        else:
-            return Exception()
-
-    def set_responce(self, responce):
-        self._responce = responce
+    @classmethod
+    def close_responce(cls, session):
+        session.close()
 
 
 class SampleAttackAsync(AttackAsync):
@@ -101,34 +77,13 @@ class SampleAttackAsync(AttackAsync):
     def set_responce(self, responce):
         self._responce = responce
 
+    @classmethod
+    async def close_session(cls, session):
+        session.close()
 
-class SampleAttackBytesAsync(AttackBytesAsync):
-    def __init__(self, target, data: dict, retries=1) -> None:
-        super().__init__(target, data, retries)
-        self._target: Target
-        self._responce: Responce
-        self.request_should_fail = False
-
-        self.set_success_bytes_strings(["unlocked"])
-        self.set_failure_bytes_strings(["Failed to log"])
-        self.set_target_errors_bytes_strings(["Our system"])
-
-    async def responce_content(self) -> str:
-        if await self.target_reached():
-            return self._responce.get_message()
-        else:
-            return str(self._responce)
-    
-    async def request(self):
-        if not self.request_should_fail:
-            account = Account(self._data)
-            return self._target.login(account)
-        else:
-            return Exception()
-
-    def set_responce(self, responce):
-        self._responce = responce
-
+    @classmethod
+    async def close_responce(cls, session):
+        session.close()
 
 
 class CommonMethods():
@@ -180,8 +135,8 @@ class TestAttackCommon(
     def test_after_request(self):
         self.attack.after_request()
 
-    def test_isconfused(self):
-        self.attack.isconfused()
+    def test_is_confused(self):
+        self.attack.is_confused()
 
     def test_confused_action(self):
         with self.assertRaises(Exception):
@@ -192,10 +147,6 @@ class TestAttackCommon(
 
     def test_start_until_retries(self):
         self.attack.start_until_retries()
-
-
-class TestAttackBytesCommon(TestAttackCommon):
-    attack_class = SampleAttackBytes
 
 
 class TestAttackAsyncCommon(
@@ -221,25 +172,10 @@ class TestAttackAsyncCommon(
         await self.attack.start_until_retries()
 
 
-class TestAttackBytesAsyncCommon(TestAttackAsyncCommon):
-    attack_class = SampleAttackBytesAsync
-
-
-
 
 
 class TestAttack(TestAttackCommon, unittest.TestCase):
     pass
 
-class TestAttackBytes(TestAttackBytesCommon, unittest.TestCase):
-    pass
-
 class TestAttackAsync(TestAttackAsyncCommon, aiounittest.AsyncTestCase):
     pass
-
-class TestAttackBytesAsync(
-    TestAttackBytesAsyncCommon, 
-    aiounittest.AsyncTestCase):
-    pass
-
-
