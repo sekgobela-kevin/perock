@@ -255,7 +255,7 @@ class BForceBase():
     def get_create_session(self):
         # Gets session object to be shared with attack objects
         # Realise the use of thread_local
-        # self._thread_local was created from threading.local()
+        # self._local was created from threading.local()
         if not self.session_exists():
             session = self.create_session()
             if session != None:
@@ -650,13 +650,22 @@ class BForceParallel(BForceBase):
 class BForceExecutor(BForceParallel):
     '''Performs bruteforce concurrent attack using provided executor'''
     _base_attack_type = Attack
-    _executor_type: Executor
+    _executor_type = Executor
+    _local_type = threading.local
+    _lock_type = threading.RLock
 
     def __init__(self, target, table: Table, optimise=False) -> None:
         super().__init__(target, table, optimise)
         self._executor: Executor = None
-        
+        self._local = self._local_type()
+        self._lock = self._lock_type()
         self._executor_is_default = True
+
+    def _get_next_producer_record(self):
+        with self._lock:
+            # Generators are not threadsafe.
+            # ValueError: generator already executing
+            return super()._get_next_producer_record()
 
     def set_executor(self, executor:Executor):
         # Sets executo to use e.g TheadPoolExecutor
@@ -666,9 +675,29 @@ class BForceExecutor(BForceParallel):
         # Returns pool executor e.g TheadPoolExecutor
         return self._executor
 
+    def session_exists(self):
+        # Checks if session exists for current thread
+        return hasattr(self._local, "session")
+
+    def set_session(self, session):
+        # Sets session for curruent thread
+        self._local.session = session
+
+    def get_session(self):
+        # Gets session for curruent thread
+        if self.session_exists():
+            return self._local.session
+        return None
+
+    def close_session(self):
+        # Close session object shared by attack objects
+        if not hasattr(self._local, "session_closed"):
+            super().close_session()
+            self._local.session_closed = True
+
     def _create_default_executor(self) -> Executor:
         # Creates executor object
-        raise NotImplementedError
+        return self._executor_type(self._max_workers)
 
     def _create_get_executor(self):
         # Gets executor or create one if not set
@@ -678,50 +707,47 @@ class BForceExecutor(BForceParallel):
             return self._executor
 
     def _to_future(self, __callable: Callable) -> Future:
+        # Creates future from callable
         return self._executor.submit(__callable)
+
+    
+    def _before_start(self):
+        # Called before .start()
+        super()._before_start()
+        self._executor_is_default = self._executor == None
+        self._executor = self._create_get_executor()
+    
+    def _after_start(self):
+        # Called after .start()
+        super()._after_start()
+        if self._max_workers is None: 
+            max_workers = 50
+        else: 
+            max_workers = self._max_workers
+        tasks = []
+        for _ in range(max_workers):
+            # Close session in each executor thread/proccess/etc
+            tasks.append(self._executor.submit(self.close_session))
+        if tasks:
+            self._wait_tasks(tasks)
+        # Cleans executor pool if not manually set.
+        if not self._executor_is_default:
+            self._executor.shutdown(True)
 
     def start(self):
         '''Starts attack into system identified by target'''
         self._before_start()
-        self._executor_is_default = self._executor == None
-        self._executor = self._create_get_executor()
         try:
             self._consumer()
         finally:
-            if not self._executor_is_default:
-                self._executor.shutdown(True)
-            self.close_session()
-        self._after_start()
+            self._after_start()
 
 
 class BForceThread(BForceExecutor):
     '''Performs bruteforce attack using threads'''
-    def __init__(self, target, table: Table, optimise=False) -> None:
-        super().__init__(target, table, optimise)
-        self._thread_local = threading.local()
-        self._lock = threading.RLock()
-
-
-    def session_exists(self):
-        # Returns True if session exists
-        return hasattr(self._thread_local, "session")
-
-    def set_session(self, session):
-        # Sets session object to be used by Attack objects
-        self._thread_local.session = session
-
-    def get_session(self):
-        if self.session_exists():
-            return self._thread_local.session
-        return None
-        
-
-    def _create_default_executor(self) -> Executor:
-        return ThreadPoolExecutor(self._max_workers)
-
-    def _get_next_producer_record(self):
-        with self._lock:
-            return super()._get_next_producer_record()
+    _executor_type = ThreadPoolExecutor
+    _local_type = threading.local
+    _lock_type = threading.RLock
 
 
 # class BForceProcess(BForceExecutor):
