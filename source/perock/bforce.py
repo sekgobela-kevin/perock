@@ -547,18 +547,21 @@ class BForceParallel(BForceBase):
 
         # Total independed tasks to run in parallel
         # Corresponds to attempts that will be executed concurrently
-        self._max_parallel_tasks = 100
+        self._max_parallel_tasks = 20
 
         # Defines how many workers to execute parallel tasks.
         # None means number whatever workers that can be created.
         self._max_workers = None
 
     def set_max_workers(self, max_workers):
-        # Sets max workers for executor
+        # Sets max workers for running tasks
         self._max_workers = max_workers
+        self._max_parallel_tasks = max_workers
 
     def set_max_parallel_tasks(self, total):
+        # Sets max parallel tasks to use on workers
         self._max_parallel_tasks = total
+        self._max_workers = total
 
     def get_current_tasks(self):
         # Returns currently runningg tasks(fututes)
@@ -912,16 +915,8 @@ class BForceAsync(BForceParallel):
         # Consumes records in records producer
         tasks:Set[Future] = set()
         count = 0
-        # Asynio does not have max workers(not limited like threads).
-        # Minimum of max workers and current max parallel tasks is used.
-        # Thats similar to how ThreadPoolExecutor/Executors behaves.
-        if self._max_workers is not None:
-            max_workers = self._max_workers
-        else:
-            max_workers = self._max_parallel_tasks
-        max_parallel_tasks = min(max_workers, self._max_parallel_tasks)
         # The while loop can be replaced by Semaphore object
-        while count < max_parallel_tasks:
+        while count < self._max_parallel_tasks:
             record = self._get_next_producer_record()
             if record != None:
                 task = self._handle_attack_recursive_future(record)
