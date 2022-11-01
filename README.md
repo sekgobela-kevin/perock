@@ -10,7 +10,7 @@ variety of brute-force attack activities. It can be used with html forms,
 file with passwords, API requiring username and password, etc.
 
 Perock is currently undergoing major changes as mentioned 
-in issue [#44](https://github.com/sekgobela-kevin/perock#44). 
+in issue [#44](https://github.com/sekgobela-kevin/perock/issues/44). 
 
 > [Broote](https://github.com/sekgobela-kevin/broote) is a wrapper around perock with all its features and but different API.
 
